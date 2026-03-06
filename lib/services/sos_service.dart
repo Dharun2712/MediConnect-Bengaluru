@@ -31,6 +31,7 @@ class SOSService {
     bool autoTriggered = false,
     Map<String, dynamic>? sensorData,
     String? contact,
+    String? imageBase64,
   }) async {
     try {
       await _ensureInitialized();
@@ -45,20 +46,25 @@ class SOSService {
       Log.d('[SOSService] Triggering SOS for user: $userId');
       Log.d('[SOSService] Location: $lat, $lng');
 
+      final body = <String, dynamic>{
+        'location': {'lat': lat, 'lng': lng},
+        'condition': condition,
+        'preliminary_severity': severity,
+        'auto_triggered': autoTriggered,
+        'sensor_data': sensorData ?? {},
+        'contact': contact ?? '',
+      };
+      if (imageBase64 != null) {
+        body['image_base64'] = imageBase64;
+      }
+
       final response = await _api.post(
         '/api/client/sos',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({
-          'location': {'lat': lat, 'lng': lng},
-          'condition': condition,
-          'preliminary_severity': severity,
-          'auto_triggered': autoTriggered,
-          'sensor_data': sensorData ?? {},
-          'contact': contact ?? '',
-        }),
+        body: jsonEncode(body),
       );
 
       Log.d('[SOSService] Response status: ${response.statusCode}');
@@ -125,6 +131,34 @@ class SOSService {
     } catch (e) {
       Log.e('[SOSService] Exception: $e');
       return [];
+    }
+  }
+
+  /// Get the accident image for a specific request
+  Future<String?> getRequestImage(String requestId) async {
+    try {
+      await _ensureInitialized();
+      
+      final token = await _authService.getToken();
+      if (token == null) return null;
+
+      final response = await _api.get(
+        '/api/request/$requestId/image',
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return data['image_base64'] as String?;
+        }
+      }
+      return null;
+    } catch (e) {
+      Log.e('[SOSService] getRequestImage error: $e');
+      return null;
     }
   }
 

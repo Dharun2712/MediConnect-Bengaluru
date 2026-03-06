@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../config/app_theme.dart';
+import '../services/sos_service.dart';
 
-class PatientProfileDialog extends StatelessWidget {
+class PatientProfileDialog extends StatefulWidget {
   final Map<String, dynamic> patient;
   final Function(String action)? onAction;
 
@@ -10,6 +13,50 @@ class PatientProfileDialog extends StatelessWidget {
     required this.patient,
     this.onAction,
   }) : super(key: key);
+
+  @override
+  State<PatientProfileDialog> createState() => _PatientProfileDialogState();
+}
+
+class _PatientProfileDialogState extends State<PatientProfileDialog> {
+  final _sosService = SOSService();
+  Uint8List? _imageBytes;
+  bool _loadingImage = false;
+  bool _imageError = false;
+
+  Map<String, dynamic> get patient => widget.patient;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  Future<void> _loadImage() async {
+    final hasImage = patient['has_image'] == true;
+    final requestId = patient['_id']?.toString();
+    if (!hasImage || requestId == null) return;
+
+    setState(() => _loadingImage = true);
+    try {
+      final base64Str = await _sosService.getRequestImage(requestId);
+      if (base64Str != null && mounted) {
+        setState(() {
+          _imageBytes = base64Decode(base64Str);
+          _loadingImage = false;
+        });
+      } else if (mounted) {
+        setState(() => _loadingImage = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingImage = false;
+          _imageError = true;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,6 +177,14 @@ class PatientProfileDialog extends StatelessWidget {
 
                     const SizedBox(height: 24),
 
+                    // Accident Image Section
+                    if (patient['has_image'] == true || _imageBytes != null) ...[
+                      _buildSectionHeader(Icons.camera_alt, 'Accident Scene Image'),
+                      const SizedBox(height: 12),
+                      _buildAccidentImageCard(),
+                      const SizedBox(height: 24),
+                    ],
+
                     // Patient Profile Card
                     _buildSectionHeader(Icons.person, 'Patient Information'),
                     const SizedBox(height: 12),
@@ -186,7 +241,7 @@ class PatientProfileDialog extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pop(context);
-                        onAction?.call('accept');
+                        widget.onAction?.call('accept');
                       },
                       icon: const Icon(Icons.check_circle),
                       label: const Text('Accept Request'),
@@ -226,7 +281,137 @@ class PatientProfileDialog extends StatelessWidget {
     );
   }
 
+  Widget _buildAccidentImageCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: _loadingImage
+            ? Container(
+                height: 200,
+                color: Colors.grey.shade100,
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 12),
+                      Text('Loading accident image...',
+                          style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              )
+            : _imageError
+                ? Container(
+                    height: 120,
+                    color: Colors.red.shade50,
+                    child: const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.broken_image, color: Colors.red, size: 32),
+                          SizedBox(height: 8),
+                          Text('Failed to load image',
+                              style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  )
+                : _imageBytes != null
+                    ? Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _showFullScreenImage(context),
+                            child: Image.memory(
+                              _imageBytes!,
+                              width: double.infinity,
+                              height: 220,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 12),
+                            color: Colors.red.shade50,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.zoom_in,
+                                    size: 16, color: Colors.red.shade700),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Tap image to view full screen',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Container(
+                        height: 120,
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: Text('Image not available',
+                              style: TextStyle(color: Colors.grey)),
+                        ),
+                      ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context) {
+    if (_imageBytes == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(8),
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.memory(_imageBytes!, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfileCard() {
+    final name = patient['user_name'] ?? 'Unknown';
+    final contact = patient['user_contact'] ?? 'N/A';
+    final bloodGroup = patient['blood_group'] ?? 'Unknown';
+    final hasAllergies = patient['has_medical_allergies'] == true;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -254,19 +439,19 @@ class PatientProfileDialog extends StatelessWidget {
                 child: Icon(Icons.person, color: Colors.blue.shade700, size: 32),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Arun',
-                      style: TextStyle(
+                      name,
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
                     ),
-                    Text(
+                    const Text(
                       'Patient',
                       style: TextStyle(
                         fontSize: 14,
@@ -282,13 +467,10 @@ class PatientProfileDialog extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 12),
           // Profile Details
-          _buildDetailRow('Name', 'Arun', Icons.badge),
-          _buildDetailRow('Age', '20 years', Icons.calendar_today),
-          _buildDetailRow('Blood Group', 'O+ve', Icons.bloodtype),
-          _buildDetailRow('Contact', '9492613200', Icons.phone),
-          _buildDetailRow('Emergency Contact', '9876543212', Icons.phone_in_talk),
-          _buildDetailRow('Blood Donor No', '8769045980', Icons.water_drop),
-          _buildDetailRow('Email', 'msarunsanjeev@gmail.com', Icons.email),
+          _buildDetailRow('Name', name, Icons.badge),
+          _buildDetailRow('Blood Group', bloodGroup, Icons.bloodtype),
+          _buildDetailRow('Contact', contact, Icons.phone),
+          _buildDetailRow('Allergies', hasAllergies ? 'Yes — Has Medical Allergies' : 'None reported', Icons.health_and_safety),
         ],
       ),
     );

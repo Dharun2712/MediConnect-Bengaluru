@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -131,12 +132,20 @@ class _AccidentImageAnalysisPageState extends State<AccidentImageAnalysisPage> {
 
     if (confirm != true) return;
 
+    // Encode the image to base64 for storage with the SOS request
+    String? imageBase64;
+    if (_selectedImage != null) {
+      final bytes = await _selectedImage!.readAsBytes();
+      imageBase64 = base64Encode(bytes);
+    }
+
     await _sosService.triggerSOS(
       lat: _currentPosition!.latitude,
       lng: _currentPosition!.longitude,
       condition: 'AI Image Analysis — Damage Lvl ${_result!.damageLevel}',
       severity: _result!.severityLevel.toLowerCase(),
       autoTriggered: false,
+      imageBase64: imageBase64,
     );
 
     if (!mounted) return;

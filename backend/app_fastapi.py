@@ -307,6 +307,7 @@ class SOSRequest(BaseModel):
     sensor_data: Optional[Dict] = {}
     auto_triggered: Optional[bool] = False
     contact: Optional[str] = ""
+    image_base64: Optional[str] = None  # Base64-encoded accident image
 
 class AcceptRequestRequest(BaseModel):
     request_id: str
@@ -764,6 +765,10 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
         "timestamp": datetime.datetime.utcnow()
     }
     
+    # Store accident image if provided
+    if payload.image_base64:
+        sos_doc["image_base64"] = payload.image_base64
+    
     result = patient_requests.insert_one(sos_doc)
     request_id = str(result.inserted_id)
     
@@ -795,7 +800,8 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
         "sensor_data": payload.sensor_data,
         "preliminary_severity": payload.preliminary_severity,
         "contact": user_contact,
-        "ttl_seconds": 30
+        "ttl_seconds": 30,
+        "has_image": payload.image_base64 is not None
     }
     
     # Emit new_sos_request (primary event driver listens for - triggers alarm & vibration)
@@ -847,21 +853,53 @@ async def get_nearby_patients(current_user: Dict = Depends(get_current_user)):
     if not driver or not driver.get("location"):
         return {"success": True, "requests": []}
     
-    # Find nearby requests
-    nearby_requests = list(patient_requests.find({
-        "status": "pending",
-        "location": {
-            "$near": {
-                "$geometry": driver["location"],
-                "$maxDistance": 20000  # 20km
+    # Find nearby requests (exclude large image_base64 field from list query)
+    nearby_requests = list(patient_requests.find(
+        {
+            "status": "pending",
+            "location": {
+                "$near": {
+                    "$geometry": driver["location"],
+                    "$maxDistance": 20000  # 20km
+                }
             }
-        }
-    }).limit(10))
+        },
+        {"image_base64": 0}  # Exclude image from list for performance
+    ).limit(10))
+    
+    results = []
+    for r in nearby_requests:
+        doc = serialize_doc(r)
+        # Check if this request has an image stored
+        has_img = patient_requests.count_documents(
+            {"_id": r["_id"], "image_base64": {"$exists": True, "$ne": None}}, limit=1
+        )
+        doc["has_image"] = has_img > 0
+        results.append(doc)
     
     return {
         "success": True,
-        "requests": [serialize_doc(r) for r in nearby_requests]
+        "requests": results
     }
+
+@app.get("/api/request/{request_id}/image")
+async def get_request_image(request_id: str, current_user: Dict = Depends(get_current_user)):
+    """Get the accident image for a specific SOS request"""
+    if current_user.get("role") not in ("driver", "admin", "client"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    doc = patient_requests.find_one(
+        {"_id": str_to_objectid(request_id)},
+        {"image_base64": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    image_data = doc.get("image_base64")
+    if not image_data:
+        return {"success": False, "message": "No image available", "image_base64": None}
+    
+    return {"success": True, "image_base64": image_data}
 
 @app.post("/api/driver/accept_request")
 async def accept_request(payload: AcceptRequestRequest, current_user: Dict = Depends(get_current_user)):
