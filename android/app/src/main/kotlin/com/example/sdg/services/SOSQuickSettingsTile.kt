@@ -1,7 +1,6 @@
 package com.example.sdg.services
 
 import android.content.Intent
-import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
@@ -27,28 +26,25 @@ class SOSQuickSettingsTile : TileService() {
         super.onClick()
         Log.d(TAG, "Quick Settings SOS tile tapped")
 
-        if (VoiceRecognitionService.isRunning) {
-            // Stop voice recognition
-            val stopIntent = Intent(this, VoiceRecognitionService::class.java).apply {
-                action = VoiceRecognitionService.ACTION_STOP
-            }
-            startService(stopIntent)
-            Toast.makeText(this, "Voice SOS stopped", Toast.LENGTH_SHORT).show()
-        } else {
-            // Start voice recognition
-            val startIntent = Intent(this, VoiceRecognitionService::class.java).apply {
-                action = VoiceRecognitionService.ACTION_START
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(startIntent)
+        unlockAndRun {
+            if (VoiceRecognitionService.isRunning) {
+                // Stop voice recognition
+                val stopIntent = Intent(this, VoiceRecognitionService::class.java).apply {
+                    action = VoiceRecognitionService.ACTION_STOP
+                }
+                startService(stopIntent)
+                Toast.makeText(this, "Voice SOS stopped", Toast.LENGTH_SHORT).show()
             } else {
-                startService(startIntent)
+                // Start voice recognition
+                val startIntent = Intent(this, VoiceRecognitionService::class.java).apply {
+                    action = VoiceRecognitionService.ACTION_START
+                }
+                startForegroundService(startIntent)
+                Toast.makeText(this, "🎤 SmartAid listening for emergency...", Toast.LENGTH_SHORT).show()
             }
-            Toast.makeText(this, "🎤 SmartAid listening for emergency...", Toast.LENGTH_SHORT).show()
-        }
 
-        updateTileState()
+            updateTileState()
+        }
     }
 
     override fun onTileAdded() {
