@@ -57,6 +57,10 @@ class MainActivity : FlutterActivity() {
                     requestOverlayPermission()
                     result.success(true)
                 }
+                "openAppSettings" -> {
+                    openAppSettings()
+                    result.success(true)
+                }
                 "startFloatingButton" -> {
                     storeAuthTokenForNative(call)
                     startFloatingButton(result)
@@ -69,13 +73,20 @@ class MainActivity : FlutterActivity() {
                 }
                 "startVoiceRecognition" -> {
                     storeAuthTokenForNative(call)
-                    startVoiceRecognition(result)
+                    val lang = call.argument<String>("language")
+                    startVoiceRecognition(result, lang)
                 }
                 "stopVoiceRecognition" -> {
                     stopVoiceRecognition(result)
                 }
                 "isVoiceRecognitionRunning" -> {
                     result.success(VoiceRecognitionService.isRunning)
+                }
+                "setVoiceLanguage" -> {
+                    val lang = call.argument<String>("language")
+                    VoiceRecognitionService.selectedLanguage = lang
+                    Log.d(TAG, "Voice language set to: ${lang ?: "auto"}")
+                    result.success(true)
                 }
                 "activateLongPressSOS" -> {
                     storeAuthTokenForNative(call)
@@ -167,6 +178,12 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun openAppSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        intent.data = Uri.parse("package:$packageName")
+        startActivity(intent)
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == OVERLAY_REQUEST_CODE) {
@@ -216,14 +233,20 @@ class MainActivity : FlutterActivity() {
 
     // === Voice Recognition ===
 
-    private fun startVoiceRecognition(result: MethodChannel.Result) {
+    private fun startVoiceRecognition(result: MethodChannel.Result, language: String? = null) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             result.error("NO_MIC_PERMISSION", "Microphone permission required", null)
             return
         }
 
+        // Set the language on the companion object before starting
+        if (language != null) {
+            VoiceRecognitionService.selectedLanguage = language
+        }
+
         val intent = Intent(this, VoiceRecognitionService::class.java).apply {
             action = VoiceRecognitionService.ACTION_START
+            language?.let { putExtra(VoiceRecognitionService.EXTRA_LANGUAGE, it) }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)

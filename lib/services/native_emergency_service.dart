@@ -93,6 +93,15 @@ class NativeEmergencyService {
     }
   }
 
+  /// Open the app's detail settings page (for "Allow restricted settings")
+  Future<void> openAppSettings() async {
+    try {
+      await _channel.invokeMethod('openAppSettings');
+    } catch (e) {
+      Log.e('[NativeEmergency] openAppSettings error: $e');
+    }
+  }
+
   // === Floating SOS Button ===
 
   /// Get current auth token to pass to native side
@@ -137,11 +146,25 @@ class NativeEmergencyService {
 
   // === Voice Recognition ===
 
+  /// Set the voice recognition language for native service
+  /// langCode: 'en', 'ta', 'hi', 'kn', 'ml', 'te', or null for auto
+  Future<bool> setVoiceLanguage(String? langCode) async {
+    try {
+      return await _channel.invokeMethod('setVoiceLanguage', {'language': langCode}) as bool;
+    } catch (e) {
+      Log.e('[NativeEmergency] setVoiceLanguage error: $e');
+      return false;
+    }
+  }
+
   /// Start the native foreground voice recognition service
-  Future<bool> startVoiceRecognition() async {
+  Future<bool> startVoiceRecognition({String? language}) async {
     try {
       final token = await _getAuthToken();
-      return await _channel.invokeMethod('startVoiceRecognition', {'authToken': token}) as bool;
+      return await _channel.invokeMethod('startVoiceRecognition', {
+        'authToken': token,
+        'language': language,
+      }) as bool;
     } catch (e) {
       Log.e('[NativeEmergency] startVoiceRecognition error: $e');
       return false;

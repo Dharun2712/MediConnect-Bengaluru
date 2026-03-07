@@ -32,6 +32,7 @@ class SOSService {
     Map<String, dynamic>? sensorData,
     String? contact,
     String? imageBase64,
+    Map<String, dynamic>? accidentAnalysis,
   }) async {
     try {
       await _ensureInitialized();
@@ -56,6 +57,9 @@ class SOSService {
       };
       if (imageBase64 != null) {
         body['image_base64'] = imageBase64;
+      }
+      if (accidentAnalysis != null) {
+        body['accident_analysis'] = accidentAnalysis;
       }
 
       final response = await _api.post(

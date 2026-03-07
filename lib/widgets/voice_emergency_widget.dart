@@ -23,6 +23,17 @@ class _VoiceEmergencyWidgetState extends State<VoiceEmergencyWidget>
   bool _showResult = false;
   VoiceCommandResult? _lastResult;
   late AnimationController _pulseController;
+  String? _selectedLanguage; // null = auto-detect
+
+  static const Map<String?, String> _languageLabels = {
+    null: '🌐 Auto Detect',
+    'en': '🇬🇧 English',
+    'ta': '🇮🇳 தமிழ் (Tamil)',
+    'hi': '🇮🇳 हिन्दी (Hindi)',
+    'kn': '🇮🇳 ಕನ್ನಡ (Kannada)',
+    'ml': '🇮🇳 മലയാളം (Malayalam)',
+    'te': '🇮🇳 తెలుగు (Telugu)',
+  };
 
   @override
   void initState() {
@@ -96,6 +107,44 @@ class _VoiceEmergencyWidgetState extends State<VoiceEmergencyWidget>
 
     return Column(
       children: [
+        // Language selector
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.language, size: 18, color: Colors.grey.shade700),
+              const SizedBox(width: 8),
+              Text('Voice Language:', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: _selectedLanguage,
+                    isExpanded: true,
+                    isDense: true,
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    items: _languageLabels.entries.map((e) {
+                      return DropdownMenuItem<String?>(
+                        value: e.key,
+                        child: Text(e.value, style: const TextStyle(fontSize: 13)),
+                      );
+                    }).toList(),
+                    onChanged: isActive ? null : (value) {
+                      setState(() => _selectedLanguage = value);
+                      _voiceService.setLanguage(value);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         // Main voice control button
         AnimatedBuilder(
           animation: _pulseController,
@@ -259,6 +308,11 @@ class _VoiceEmergencyWidgetState extends State<VoiceEmergencyWidget>
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
+              _selectedLanguage == 'ta' ? 'சொல்லுங்கள்: "உதவி" · "அவசரம்" · "ஆம்புலன்ஸ்"' :
+              _selectedLanguage == 'hi' ? 'बोलें: "मदद" · "आपातकाल" · "एम्बुलेंस बुलाओ"' :
+              _selectedLanguage == 'kn' ? 'ಹೇಳಿ: "ಸಹಾಯ" · "ತುರ್ತು" · "ಆಂಬುಲೆನ್ಸ್"' :
+              _selectedLanguage == 'ml' ? 'പറയൂ: "സഹായം" · "അടിയന്തരം" · "ആംബുലൻസ്"' :
+              _selectedLanguage == 'te' ? 'చెప్పండి: "సహాయం" · "అత్యవసరం" · "ఆంబులెన్స్"' :
               'Say: "SmartAid Help" · "Emergency Help" · "Call Ambulance"',
               style: TextStyle(
                 fontSize: 10,

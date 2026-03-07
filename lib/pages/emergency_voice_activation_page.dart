@@ -137,13 +137,21 @@ class _EmergencyVoiceActivationPageState
               'The floating SOS button needs permission to draw over other apps.',
               style: TextStyle(fontSize: 14),
             ),
-            SizedBox(height: 12),
-            Text('Steps:', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            Text('If the toggle is greyed out / disabled:',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
             SizedBox(height: 6),
-            Text('1. Tap "Open Settings" below'),
-            Text('2. Find "LifeLink" in the list'),
-            Text('3. Toggle "Allow display over other apps" ON'),
-            Text('4. Return to this screen'),
+            Text('1. Tap "App Info" below to open app details'),
+            Text('2. Tap the ⋮ (three dots) menu at top-right'),
+            Text('3. Select "Allow restricted settings"'),
+            Text('4. Come back and tap "Overlay Settings"'),
+            SizedBox(height: 16),
+            Text('Then enable overlay:',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 6),
+            Text('1. Tap "Overlay Settings" below'),
+            Text('2. Toggle "Allow display over other apps" ON'),
+            Text('3. Return to this screen'),
           ],
         ),
         actions: [
@@ -151,12 +159,18 @@ class _EmergencyVoiceActivationPageState
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
+          OutlinedButton(
+            onPressed: () {
+              _nativeService.openAppSettings();
+            },
+            child: const Text('App Info'),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _requestOverlay();
             },
-            child: const Text('Open Settings'),
+            child: const Text('Overlay Settings'),
           ),
         ],
       ),

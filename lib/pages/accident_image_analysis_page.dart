@@ -146,6 +146,7 @@ class _AccidentImageAnalysisPageState extends State<AccidentImageAnalysisPage> {
       severity: _result!.severityLevel.toLowerCase(),
       autoTriggered: false,
       imageBase64: imageBase64,
+      accidentAnalysis: _result!.toJson(),
     );
 
     if (!mounted) return;

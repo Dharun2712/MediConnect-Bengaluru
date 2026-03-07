@@ -19,11 +19,8 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Groq API key – MUST be set via environment variable
-GROQ_API_KEY = os.environ.get(
-    "GROQ_API_KEY",
-    "",  # Set GROQ_API_KEY environment variable before running
-)
+# Groq API key
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 if not GROQ_API_KEY:
     logger.warning(
@@ -32,7 +29,7 @@ if not GROQ_API_KEY:
     )
 
 # Vision model available on Groq
-VISION_MODEL = "llava-v1.5-7b-4096-preview"
+VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 # System prompt sent to the vision model
 ANALYSIS_PROMPT = """You are an AI emergency accident analysis system used in a SmartAid platform.

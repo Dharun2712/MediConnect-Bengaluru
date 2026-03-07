@@ -83,50 +83,125 @@ class VoiceEmergencyService {
   int _consecutiveErrors = 0;
   static const int _maxConsecutiveErrors = 5;
 
+  // Multi-language support
+  static const Map<String, String> supportedLanguages = {
+    'en': 'en_IN',  // English (India)
+    'ta': 'ta_IN',  // Tamil
+    'hi': 'hi_IN',  // Hindi
+    'kn': 'kn_IN',  // Kannada
+    'ml': 'ml_IN',  // Malayalam
+    'te': 'te_IN',  // Telugu
+  };
+
+  String? _selectedLanguageCode;
+
+  /// Set the speech recognition language. Pass null to use device default.
+  void setLanguage(String? langCode) {
+    _selectedLanguageCode = langCode;
+    Log.d('[VoiceEmergency] Language set to: ${langCode ?? "auto (device default)"}');
+  }
+
+  String? get selectedLanguageCode => _selectedLanguageCode;
+
+  String? get _currentLocaleId {
+    if (_selectedLanguageCode == null) return null;
+    return supportedLanguages[_selectedLanguageCode];
+  }
+
   // Callbacks
   OnEmergencyDetected? onEmergencyDetected;
   OnVoiceStatusChanged? onStatusChanged;
   OnTranscription? onTranscription;
 
-  // Wake phrases that activate command capture
+  // Wake phrases - multilingual (English, Tamil, Hindi, Kannada, Malayalam, Telugu)
   static const List<String> _wakePhrases = [
-    'smartaid help',
-    'smart aid help',
-    'emergency help',
-    'call ambulance',
-    'call an ambulance',
-    'smartaid emergency',
-    'smart aid emergency',
-    'hey smartaid',
-    'hey smart aid',
+    // English
+    'smartaid help', 'smart aid help', 'emergency help',
+    'call ambulance', 'call an ambulance',
+    'smartaid emergency', 'smart aid emergency',
+    'hey smartaid', 'hey smart aid',
+    'help', 'help me', 'save me', 'danger', 'sos',
+    'i need help', 'somebody help', 'please help',
+    'call emergency', 'send ambulance',
+    // Tamil (native script)
+    'உதவி', 'ஆம்புலன்ஸ்', 'அவசரம்', 'ஆம்புலன்ஸ் அழை',
+    'காப்பாத்துங்க', 'காப்பாற்றுங்க', 'காப்பாற்றுங்கள்',
+    'என்னை காப்பாத்துங்க', 'என்னை காப்பாற்றுங்கள்',
+    'காப்பாத்துங்க ஐயா', 'உதவி செய்யுங்கள்',
+    'எனக்கு உதவி வேண்டும்', 'ஆபத்து', 'விபத்து',
+    'போலீஸ் அழைக்கவும்', 'ஆம்புலன்ஸ் அழைக்கவும்',
+    'தயவு செய்து உதவி செய்யுங்கள்',
+    // Tamil (phonetic - speech recognition may output English letters)
+    'udhavi', 'udavi', 'udhavi pannunga',
+    'kaapathunga', 'kapathunga', 'kaapatrunga',
+    'ennaai kaapathunga', 'ambulance azhaikkavum', 'vibathu',
+    // Hindi
+    'मदद', 'एम्बुलेंस बुलाओ', 'आपातकाल', 'बचाओ',
+    'मेरी मदद करो', 'कृपया मदद करें', 'खतरा',
+    'पुलिस बुलाओ', 'मेरी जान बचाओ', 'जल्दी मदद करो',
+    // Kannada
+    'ಸಹಾಯ', 'ಆಂಬುಲೆನ್ಸ್', 'ತುರ್ತು',
+    'ಸಹಾಯ ಮಾಡಿ', 'ರಕ್ಷಿಸಿ', 'ಅಪಾಯ',
+    'ತುರ್ತು ಪರಿಸ್ಥಿತಿ', 'ಆಂಬುಲೆನ್ಸ್ ಕರೆ ಮಾಡಿ',
+    'ಪೋಲೀಸ್ ಕರೆ ಮಾಡಿ', 'ದಯವಿಟ್ಟು ಸಹಾಯ ಮಾಡಿ',
+    // Malayalam
+    'സഹായം', 'ആംബുലൻസ്', 'അടിയന്തരം',
+    'സഹായിക്കൂ', 'രക്ഷിക്കൂ', 'അപകടം',
+    'ആംബുലൻസ് വിളിക്കൂ', 'പൊലീസ് വിളിക്കൂ',
+    'ദയവായി സഹായിക്കൂ', 'അടിയന്തിരം',
+    // Telugu
+    'సహాయం', 'ఆంబులెన్స్', 'అత్యవసరం',
+    'సహాయం చేయండి', 'రక్షించండి', 'ప్రమాదం',
+    'అంబులెన్స్ పిలవండి', 'పోలీస్ పిలవండి',
+    'దయచేసి సహాయం చేయండి',
   ];
 
-  // Emergency keywords for intent classification
+  // Emergency keywords - multilingual
   static const List<String> _emergencyKeywords = [
-    'help',
-    'accident',
-    'ambulance',
-    'emergency',
-    'medical',
-    'injured',
-    'hurt',
-    'bleeding',
-    'unconscious',
-    'crash',
-    'fire',
-    'dying',
-    'heart attack',
-    'stroke',
-    'choking',
-    'fallen',
-    'broken',
-    'wound',
-    'pain',
-    'sos',
-    'save me',
-    'need doctor',
-    'call doctor',
-    'send help',
+    // English
+    'help', 'help me', 'accident', 'ambulance', 'emergency', 'medical',
+    'injured', 'hurt', 'bleeding', 'unconscious', 'crash',
+    'fire', 'dying', 'heart attack', 'stroke', 'choking',
+    'fallen', 'broken', 'wound', 'pain', 'sos',
+    'save me', 'need doctor', 'call doctor', 'send help',
+    'danger', 'i need help', 'somebody help', 'please help',
+    'i need assistance', 'call police', 'medical emergency',
+    'call emergency services', 'i\'m hurt', 'i\'m injured',
+    'i\'m in danger', 'i fell down', 'send ambulance',
+    // Tamil (native script)
+    'உதவி', 'உதவி செய்யுங்கள்', 'விபத்து', 'ஆம்புலன்ஸ்', 'அவசரம்',
+    'காயம்', 'ரத்தம்', 'நெருப்பு', 'வலி', 'மருத்துவர்',
+    'காப்பாத்துங்க', 'காப்பாற்றுங்க', 'காப்பாற்றுங்கள்',
+    'என்னை காப்பாத்துங்க', 'என்னை காப்பாற்றுங்கள்',
+    'காப்பாத்துங்க ஐயா', 'எனக்கு உதவி வேண்டும்',
+    'ஆபத்து', 'ஆம்புலன்ஸ் அழைக்கவும்', 'போலீஸ் அழைக்கவும்',
+    'நான் காயம் அடைந்தேன்', 'நான் விழுந்துவிட்டேன்',
+    'தயவு செய்து உதவி செய்யுங்கள்',
+    // Tamil (phonetic)
+    'udhavi', 'udavi', 'udhavi pannunga',
+    'kaapathunga', 'kapathunga', 'kaapatrunga',
+    'ennaai kaapathunga', 'ambulance azhaikkavum', 'vibathu',
+    // Hindi
+    'मदद', 'मेरी मदद करो', 'दुर्घटना', 'एम्बुलेंस', 'आपातकाल',
+    'घायल', 'खून', 'आग', 'दर्द', 'बचाओ', 'डॉक्टर',
+    'एम्बुलेंस बुलाओ', 'पुलिस बुलाओ', 'मुझे चोट लगी है',
+    'कृपया मदद करें', 'खतरा', 'मेरी जान बचाओ', 'जल्दी मदद करो',
+    // Kannada
+    'ಸಹಾಯ', 'ಸಹಾಯ ಮಾಡಿ', 'ಅಪಘಾತ', 'ಆಂಬುಲೆನ್ಸ್', 'ತುರ್ತು',
+    'ಗಾಯ', 'ರಕ್ತಸ್ರಾವ', 'ಬೆಂಕಿ', 'ನೋವು',
+    'ರಕ್ಷಿಸಿ', 'ಅಪಾಯ', 'ತುರ್ತು ಪರಿಸ್ಥಿತಿ',
+    'ಆಂಬುಲೆನ್ಸ್ ಕರೆ ಮಾಡಿ', 'ಪೋಲೀಸ್ ಕರೆ ಮಾಡಿ',
+    'ನನಗೆ ಗಾಯವಾಗಿದೆ', 'ದಯವಿಟ್ಟು ಸಹಾಯ ಮಾಡಿ',
+    // Malayalam
+    'സഹായം', 'സഹായിക്കൂ', 'അപകടം', 'ആംബുലൻസ്', 'അടിയന്തരം',
+    'പരിക്ക്', 'രക്തസ്രാവം', 'തീ', 'വേദന',
+    'രക്ഷിക്കൂ', 'ആംബുലൻസ് വിളിക്കൂ', 'പൊലീസ് വിളിക്കൂ',
+    'എനിക്ക് പരിക്ക് പറ്റി', 'ദയവായി സഹായിക്കൂ', 'അടിയന്തിരം',
+    // Telugu
+    'సహాయం', 'సహాయం చేయండి', 'ప్రమాదం', 'ఆంబులెన్స్', 'అత్యవసరం',
+    'గాయం', 'రక్తస్రావం', 'మంట', 'నొప్పి',
+    'రక్షించండి', 'అంబులెన్స్ పిలవండి', 'పోలీస్ పిలవండి',
+    'నాకు గాయం అయ్యింది', 'దయచేసి సహాయం చేయండి',
   ];
 
   // Getters
@@ -224,6 +299,7 @@ class VoiceEmergencyService {
       partialResults: true,
       cancelOnError: false,
       listenMode: ListenMode.dictation,
+      localeId: _currentLocaleId,
     );
   }
 
@@ -268,19 +344,44 @@ class VoiceEmergencyService {
   }
 
   /// Check if text is an urgent emergency phrase (no wake word needed)
+  /// Supports English, Tamil, Hindi, Kannada, Malayalam, Telugu
   bool _isUrgentEmergencyPhrase(String text) {
     const urgentPhrases = [
-      'help help',
-      'help me',
-      'call ambulance',
-      'call an ambulance',
-      'send ambulance',
-      'i need help',
-      'someone help',
-      'there is an accident',
-      'there\'s an accident',
-      'i need medical',
-      'send emergency help',
+      // English
+      'help help', 'help me', 'call ambulance', 'call an ambulance',
+      'send ambulance', 'i need help', 'someone help', 'somebody help',
+      'there is an accident', 'there\'s an accident',
+      'i need medical', 'send emergency help', 'please help',
+      'i\'m hurt', 'i\'m injured', 'i\'m in danger', 'i fell down',
+      'call police', 'call emergency services', 'medical emergency',
+      'save me', 'i need assistance',
+      // Tamil (native)
+      'உதவி உதவி', 'எனக்கு உதவி', 'ஆம்புலன்ஸ் அழை', 'விபத்து ஆகிவிட்டது',
+      'காப்பாத்துங்க', 'காப்பாற்றுங்க', 'என்னை காப்பாத்துங்க',
+      'என்னை காப்பாற்றுங்கள்', 'காப்பாத்துங்க ஐயா',
+      'உதவி செய்யுங்கள்', 'எனக்கு உதவி வேண்டும்',
+      'ஆம்புலன்ஸ் அழைக்கவும்', 'போலீஸ் அழைக்கவும்',
+      'நான் காயம் அடைந்தேன்', 'நான் விழுந்துவிட்டேன்',
+      'தயவு செய்து உதவி செய்யுங்கள்',
+      // Tamil (phonetic)
+      'kaapathunga', 'kapathunga', 'kaapatrunga',
+      'udhavi', 'udhavi pannunga', 'ennaai kaapathunga',
+      // Hindi
+      'मदद मदद', 'मुझे मदद चाहिए', 'एम्बुलेंस बुलाओ', 'दुर्घटना हो गई',
+      'बचाओ बचाओ', 'मेरी मदद करो', 'कृपया मदद करें',
+      'मेरी जान बचाओ', 'जल्दी मदद करो', 'पुलिस बुलाओ', 'मुझे चोट लगी है',
+      // Kannada
+      'ಸಹಾಯ ಸಹಾಯ', 'ನನಗೆ ಸಹಾಯ ಬೇಕು', 'ಆಂಬುಲೆನ್ಸ್ ಕರೆಯಿರಿ',
+      'ಸಹಾಯ ಮಾಡಿ', 'ರಕ್ಷಿಸಿ', 'ಆಂಬುಲೆನ್ಸ್ ಕರೆ ಮಾಡಿ',
+      'ಪೋಲೀಸ್ ಕರೆ ಮಾಡಿ', 'ನನಗೆ ಗಾಯವಾಗಿದೆ', 'ದಯವಿಟ್ಟು ಸಹಾಯ ಮಾಡಿ',
+      // Malayalam
+      'സഹായം സഹായം', 'എനിക്ക് സഹായം വേണം', 'ആംബുലൻസ് വിളിക്കൂ',
+      'സഹായിക്കൂ', 'രക്ഷിക്കൂ', 'പൊലീസ് വിളിക്കൂ',
+      'എനിക്ക് പരിക്ക് പറ്റി', 'ദയവായി സഹായിക്കൂ',
+      // Telugu
+      'సహాయం సహాయం', 'నాకు సహాయం కావాలి', 'ఆంబులెన్స్ పిలవండి',
+      'సహాయం చేయండి', 'రక్షించండి', 'అంబులెన్స్ పిలవండి',
+      'పోలీస్ పిలవండి', 'నాకు గాయం అయ్యింది', 'దయచేసి సహాయం చేయండి',
     ];
     return urgentPhrases.any((phrase) => text.contains(phrase));
   }
@@ -313,6 +414,7 @@ class VoiceEmergencyService {
         partialResults: true,
         cancelOnError: false,
         listenMode: ListenMode.dictation,
+        localeId: _currentLocaleId,
       );
     });
   }

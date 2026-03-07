@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import '../config/api_config.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/auth_service.dart';
@@ -1653,12 +1655,43 @@ class _DriverDashboardEnhancedState extends State<DriverDashboardEnhanced> {
                                         ),
                                       ),
                                     ],
+                                    if (request['accident_analysis'] != null) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.purple.shade700,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.analytics, color: Colors.white, size: 12),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'AI',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        // Accident Image Preview
+                        if (request['has_image'] == true || request['accident_analysis'] != null)
+                          _RequestImagePreview(
+                            requestId: request['_id']?.toString(),
+                            hasImage: request['has_image'] == true,
+                          ),
                         // Details section
                         Padding(
                           padding: const EdgeInsets.all(16),
@@ -1819,5 +1852,158 @@ class _DriverDashboardEnhancedState extends State<DriverDashboardEnhanced> {
     _mapController?.dispose();
     _locationSubscription?.cancel();
     super.dispose();
+  }
+}
+
+/// Loads and displays accident image preview in the request card
+class _RequestImagePreview extends StatefulWidget {
+  final String? requestId;
+  final bool hasImage;
+
+  const _RequestImagePreview({
+    required this.requestId,
+    required this.hasImage,
+  });
+
+  @override
+  State<_RequestImagePreview> createState() => _RequestImagePreviewState();
+}
+
+class _RequestImagePreviewState extends State<_RequestImagePreview> {
+  final _sosService = SOSService();
+  Uint8List? _imageBytes;
+  bool _loading = true;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  Future<void> _loadImage() async {
+    if (widget.requestId == null) {
+      setState(() { _loading = false; _error = true; });
+      return;
+    }
+    try {
+      final base64Str = await _sosService.getRequestImage(widget.requestId!);
+      if (base64Str != null && base64Str.isNotEmpty && mounted) {
+        setState(() {
+          _imageBytes = base64Decode(base64Str);
+          _loading = false;
+        });
+      } else if (mounted) {
+        setState(() { _loading = false; });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; _error = true; });
+    }
+  }
+
+  void _showFullScreen() {
+    if (_imageBytes == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(8),
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.memory(_imageBytes!, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        height: 140,
+        color: Colors.grey.shade100,
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(height: 8),
+              Text('Loading accident image...', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_imageBytes == null) {
+      return const SizedBox.shrink();
+    }
+
+    return GestureDetector(
+      onTap: _showFullScreen,
+      child: Stack(
+        children: [
+          Image.memory(
+            _imageBytes!,
+            width: double.infinity,
+            height: 160,
+            fit: BoxFit.cover,
+          ),
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red.shade700.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                  SizedBox(width: 4),
+                  Text('Accident Scene', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.fullscreen, color: Colors.white, size: 14),
+                  SizedBox(width: 4),
+                  Text('Tap to zoom', style: TextStyle(color: Colors.white, fontSize: 11)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

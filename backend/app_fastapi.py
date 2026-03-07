@@ -308,6 +308,7 @@ class SOSRequest(BaseModel):
     auto_triggered: Optional[bool] = False
     contact: Optional[str] = ""
     image_base64: Optional[str] = None  # Base64-encoded accident image
+    accident_analysis: Optional[Dict] = None  # AI image analysis results
 
 class AcceptRequestRequest(BaseModel):
     request_id: str
@@ -769,6 +770,10 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
     if payload.image_base64:
         sos_doc["image_base64"] = payload.image_base64
     
+    # Store AI accident analysis if provided
+    if payload.accident_analysis:
+        sos_doc["accident_analysis"] = payload.accident_analysis
+    
     result = patient_requests.insert_one(sos_doc)
     request_id = str(result.inserted_id)
     
@@ -853,7 +858,7 @@ async def get_nearby_patients(current_user: Dict = Depends(get_current_user)):
     if not driver or not driver.get("location"):
         return {"success": True, "requests": []}
     
-    # Find nearby requests (exclude large image_base64 field from list query)
+    # Find nearby requests (exclude large image_base64 field from list query, keep accident_analysis)
     nearby_requests = list(patient_requests.find(
         {
             "status": "pending",

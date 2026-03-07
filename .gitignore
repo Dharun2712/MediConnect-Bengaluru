@@ -1,9 +1,11 @@
 # APK files (too large for GitHub)
 *.apk
+*.aab
 
 # Backend - Python/Flask
 backend/.env
 backend/venv/
+backend/.venv/
 backend/__pycache__/
 backend/*.pyc
 backend/*.pyo
@@ -11,13 +13,20 @@ backend/*.pyd
 backend/.Python
 backend/pip-log.txt
 backend/.pytest_cache/
+backend/logs/
+*.egg-info/
+.env
 
 # Miscellaneous
 *.class
 *.log
 *.pyc
 *.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
+desktop.ini
 .atom/
 .build/
 .buildlog/
@@ -32,16 +41,16 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code
+.vscode/
 
 # Flutter/Dart/Pub related
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
-.flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
@@ -53,7 +62,23 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/.gradle/
+android/local.properties
+android/key.properties
+
+# iOS/macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+macos/Flutter/ephemeral/
+**/DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Windows/Linux
+windows/flutter/ephemeral/
+linux/flutter/ephemeral/

@@ -26,6 +26,19 @@ class VoiceRecognitionService : Service() {
         const val NOTIFICATION_ID = 9001
         const val ACTION_START = "com.example.sdg.ACTION_START_VOICE"
         const val ACTION_STOP = "com.example.sdg.ACTION_STOP_VOICE"
+        const val EXTRA_LANGUAGE = "language_code"
+
+        // Supported languages: Tamil, English, Hindi, Kannada, Malayalam, Telugu
+        val SUPPORTED_LANGUAGES = mapOf(
+            "en" to "en-IN",
+            "ta" to "ta-IN",
+            "hi" to "hi-IN",
+            "kn" to "kn-IN",
+            "ml" to "ml-IN",
+            "te" to "te-IN"
+        )
+
+        var selectedLanguage: String? = null  // null = auto-detect
 
         var isRunning = false
             private set
@@ -53,6 +66,11 @@ class VoiceRecognitionService : Service() {
                 return START_NOT_STICKY
             }
             else -> {
+                // Check if a language was passed
+                intent?.getStringExtra(EXTRA_LANGUAGE)?.let { lang ->
+                    selectedLanguage = lang
+                    Log.d(TAG, "Language set from intent: $lang")
+                }
                 startForegroundNotification()
                 acquireWakeLock()
                 startListening()
@@ -177,6 +195,19 @@ class VoiceRecognitionService : Service() {
                     putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 3000)
                     putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000)
                     putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000)
+                    // Multi-language: set selected language or enable all supported languages
+                    val langCode = selectedLanguage
+                    if (langCode != null && SUPPORTED_LANGUAGES.containsKey(langCode)) {
+                        val locale = SUPPORTED_LANGUAGES[langCode]!!
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale)
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, locale)
+                        Log.d(TAG, "Speech recognition language: $locale")
+                    } else {
+                        // Default to English (India) when no specific language selected
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-IN")
+                        Log.d(TAG, "Speech recognition: default (en-IN)")
+                    }
                 }
 
                 speechRecognizer?.startListening(intent)

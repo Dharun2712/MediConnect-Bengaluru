@@ -23,15 +23,53 @@ import java.net.URL
 object EmergencyAlertManager {
 
     private const val TAG = "EmergencyAlertManager"
-    private const val BACKEND_URL = "http://20.47.72.43:8000"
+    private const val BACKEND_URL = "http://172.17.97.66:8000"
 
-    // Emergency keywords that trigger SOS
+    // Emergency keywords - multilingual (English, Tamil, Hindi, Kannada, Malayalam, Telugu)
     private val emergencyKeywords = listOf(
-        "help", "accident", "ambulance", "emergency",
+        // English
+        "help", "help me", "accident", "ambulance", "emergency",
         "medical", "injured", "hurt", "bleeding",
         "unconscious", "crash", "fire", "sos",
         "save me", "need doctor", "call ambulance",
-        "send help", "heart attack", "stroke", "choking"
+        "send help", "heart attack", "stroke", "choking",
+        "danger", "please help", "somebody help",
+        "call police", "send ambulance", "i need help",
+        "medical emergency", "i fell down",
+        // Tamil (native script)
+        "உதவி", "உதவி செய்யுங்கள்", "விபத்து", "ஆம்புலன்ஸ்", "அவசரம்",
+        "காயம்", "ரத்தம்", "நெருப்பு", "வலி", "மருத்துவர்",
+        "காப்பாத்துங்க", "காப்பாற்றுங்க", "காப்பாற்றுங்கள்",
+        "என்னை காப்பாத்துங்க", "என்னை காப்பாற்றுங்கள்",
+        "காப்பாத்துங்க ஐயா", "எனக்கு உதவி வேண்டும்", "ஆபத்து",
+        "ஆம்புலன்ஸ் அழைக்கவும்", "போலீஸ் அழைக்கவும்",
+        "நான் காயம் அடைந்தேன்", "நான் விழுந்துவிட்டேன்",
+        "தயவு செய்து உதவி செய்யுங்கள்",
+        // Tamil (phonetic - speech may output English letters)
+        "udhavi", "udavi", "udhavi pannunga",
+        "kaapathunga", "kapathunga", "kaapatrunga",
+        "ennaai kaapathunga", "ambulance azhaikkavum", "vibathu",
+        // Hindi
+        "मदद", "मेरी मदद करो", "दुर्घटना", "एम्बुलेंस", "आपातकाल",
+        "घायल", "खून", "आग", "दर्द", "बचाओ", "डॉक्टर",
+        "एम्बुलेंस बुलाओ", "पुलिस बुलाओ", "मुझे चोट लगी है",
+        "कृपया मदद करें", "खतरा", "मेरी जान बचाओ", "जल्दी मदद करो",
+        // Kannada
+        "ಸಹಾಯ", "ಸಹಾಯ ಮಾಡಿ", "ಅಪಘಾತ", "ಆಂಬುಲೆನ್ಸ್", "ತುರ್ತು",
+        "ಗಾಯ", "ರಕ್ತಸ್ರಾವ", "ಬೆಂಕಿ", "ನೋವು",
+        "ರಕ್ಷಿಸಿ", "ಅಪಾಯ", "ತುರ್ತು ಪರಿಸ್ಥಿತಿ",
+        "ಆಂಬುಲೆನ್ಸ್ ಕರೆ ಮಾಡಿ", "ಪೋಲೀಸ್ ಕರೆ ಮಾಡಿ",
+        "ನನಗೆ ಗಾಯವಾಗಿದೆ", "ದಯವಿಟ್ಟು ಸಹಾಯ ಮಾಡಿ",
+        // Malayalam
+        "സഹായം", "സഹായിക്കൂ", "അപകടം", "ആംബുലൻസ്", "അടിയന്തരം",
+        "പരിക്ക്", "രക്തസ്രാവം", "തീ", "വേദന",
+        "രക്ഷിക്കൂ", "ആംബുലൻസ് വിളിക്കൂ", "പൊലീസ് വിളിക്കൂ",
+        "എനിക്ക് പരിക്ക് പറ്റി", "ദയവായി സഹായിക്കൂ", "അടിയന്തിരം",
+        // Telugu
+        "సహాయం", "సహాయం చేయండి", "ప్రమాదం", "ఆంబులెన్స్", "అత్యవసరం",
+        "గాయం", "రక్తస్రావం", "మంట", "నొప్పి",
+        "రక్షించండి", "అంబులెన్స్ పిలవండి", "పోలీస్ పిలవండి",
+        "నాకు గాయం అయ్యింది", "దయచేసి సహాయం చేయండి"
     )
 
     /**

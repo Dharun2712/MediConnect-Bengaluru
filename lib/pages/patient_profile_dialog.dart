@@ -32,21 +32,31 @@ class _PatientProfileDialogState extends State<PatientProfileDialog> {
     _loadImage();
   }
 
+  bool get _shouldShowImage =>
+      patient['has_image'] == true ||
+      patient['accident_analysis'] != null ||
+      _imageBytes != null;
+
   Future<void> _loadImage() async {
-    final hasImage = patient['has_image'] == true;
     final requestId = patient['_id']?.toString();
-    if (!hasImage || requestId == null) return;
+    // Try loading if has_image flag is set, or if accident_analysis exists
+    // (since analysis implies an image was uploaded)
+    if (requestId == null) return;
+    if (patient['has_image'] != true && patient['accident_analysis'] == null) return;
 
     setState(() => _loadingImage = true);
     try {
       final base64Str = await _sosService.getRequestImage(requestId);
-      if (base64Str != null && mounted) {
+      if (base64Str != null && base64Str.isNotEmpty && mounted) {
         setState(() {
           _imageBytes = base64Decode(base64Str);
           _loadingImage = false;
         });
       } else if (mounted) {
-        setState(() => _loadingImage = false);
+        setState(() {
+          _loadingImage = false;
+          _imageError = patient['has_image'] == true; // only error if flag said it existed
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -178,10 +188,18 @@ class _PatientProfileDialogState extends State<PatientProfileDialog> {
                     const SizedBox(height: 24),
 
                     // Accident Image Section
-                    if (patient['has_image'] == true || _imageBytes != null) ...[
+                    if (_shouldShowImage) ...[
                       _buildSectionHeader(Icons.camera_alt, 'Accident Scene Image'),
                       const SizedBox(height: 12),
                       _buildAccidentImageCard(),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // AI Analysis Section
+                    if (patient['accident_analysis'] != null) ...[
+                      _buildSectionHeader(Icons.analytics, 'AI Accident Analysis'),
+                      const SizedBox(height: 12),
+                      _buildAIAnalysisCard(Map<String, dynamic>.from(patient['accident_analysis'] as Map)),
                       const SizedBox(height: 24),
                     ],
 
@@ -333,11 +351,34 @@ class _PatientProfileDialogState extends State<PatientProfileDialog> {
                         children: [
                           GestureDetector(
                             onTap: () => _showFullScreenImage(context),
-                            child: Image.memory(
-                              _imageBytes!,
-                              width: double.infinity,
-                              height: 220,
-                              fit: BoxFit.cover,
+                            child: Stack(
+                              children: [
+                                Image.memory(
+                                  _imageBytes!,
+                                  width: double.infinity,
+                                  height: 220,
+                                  fit: BoxFit.cover,
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.fullscreen, color: Colors.white, size: 16),
+                                        SizedBox(width: 4),
+                                        Text('View Full', style: TextStyle(color: Colors.white, fontSize: 11)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           Container(
@@ -372,6 +413,173 @@ class _PatientProfileDialogState extends State<PatientProfileDialog> {
                               style: TextStyle(color: Colors.grey)),
                         ),
                       ),
+      ),
+    );
+  }
+
+  Widget _buildAIAnalysisCard(Map<String, dynamic> analysis) {
+    final people = analysis['people_detected'] ?? 0;
+    final vehicles = analysis['vehicles_detected'] ?? 0;
+    final injured = analysis['possible_injured'] ?? 0;
+    final fire = analysis['fire_detected'] == true;
+    final damageLevel = analysis['damage_level'] ?? 0;
+    final severity = '${analysis['severity_level'] ?? 'UNKNOWN'}'.toUpperCase();
+    final priority = '${analysis['ambulance_priority'] ?? 'UNKNOWN'}'.toUpperCase();
+
+    final damageLevelText = switch (damageLevel) {
+      1 => 'Very Minor',
+      2 => 'Minor',
+      3 => 'Moderate',
+      4 => 'Severe',
+      5 => 'Catastrophic',
+      _ => 'Unknown',
+    };
+
+    final severityColor = severity == 'CRITICAL'
+        ? Colors.red
+        : severity == 'MEDIUM'
+            ? Colors.orange
+            : Colors.green;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: severityColor.withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: severityColor.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Severity & Priority banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+            decoration: BoxDecoration(
+              color: severityColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: severityColor, width: 1.5),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  severity == 'CRITICAL'
+                      ? Icons.warning_rounded
+                      : severity == 'MEDIUM'
+                          ? Icons.error_outline
+                          : Icons.check_circle_outline,
+                  color: severityColor,
+                  size: 28,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'AI Severity: $severity',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: severityColor,
+                        ),
+                      ),
+                      Text(
+                        'Ambulance Priority: $priority',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: severityColor.withOpacity(0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Stats grid
+          Row(
+            children: [
+              Expanded(child: _analysisStatTile(Icons.people, '$people', 'People', Colors.blue)),
+              const SizedBox(width: 8),
+              Expanded(child: _analysisStatTile(Icons.directions_car, '$vehicles', 'Vehicles', Colors.indigo)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _analysisStatTile(Icons.personal_injury, '$injured', 'Injured', Colors.red)),
+              const SizedBox(width: 8),
+              Expanded(child: _analysisStatTile(
+                fire ? Icons.local_fire_department : Icons.check_circle,
+                fire ? 'YES' : 'No',
+                'Fire',
+                fire ? Colors.deepOrange : Colors.green,
+              )),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Damage level bar
+          Row(
+            children: [
+              const Icon(Icons.car_crash, size: 20, color: Colors.black54),
+              const SizedBox(width: 8),
+              const Text('Damage Level: ', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                '$damageLevel/5 — $damageLevelText',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: damageLevel >= 4 ? Colors.red : damageLevel >= 3 ? Colors.orange : Colors.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: damageLevel / 5.0,
+              minHeight: 10,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                damageLevel >= 4 ? Colors.red : damageLevel >= 3 ? Colors.orange : Colors.green,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _analysisStatTile(IconData icon, String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+          ),
+          Text(label, style: TextStyle(fontSize: 11, color: color.withOpacity(0.8))),
+        ],
       ),
     );
   }

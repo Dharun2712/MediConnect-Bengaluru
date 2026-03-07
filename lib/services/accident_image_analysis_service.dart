@@ -71,6 +71,17 @@ class AccidentAnalysisResult {
   /// Whether the situation is critical enough to auto-trigger SOS
   bool get shouldAutoTriggerSOS =>
       severityLevel == 'CRITICAL' || ambulancePriority == 'HIGH';
+
+  /// Convert to JSON map for sending with SOS request
+  Map<String, dynamic> toJson() => {
+    'people_detected': peopleDetected,
+    'vehicles_detected': vehiclesDetected,
+    'possible_injured': possibleInjured,
+    'fire_detected': fireDetected,
+    'damage_level': damageLevel,
+    'severity_level': severityLevel,
+    'ambulance_priority': ambulancePriority,
+  };
 }
 
 /// Service that routes accident image analysis through the SmartAid backend,
