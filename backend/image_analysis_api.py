@@ -6,6 +6,7 @@ accident scene images and receiving AI-powered severity analysis.
 
 import logging
 import time
+import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -106,12 +107,35 @@ async def analyze_accident(
     if lat is not None and lng is not None:
         response["location"] = {"lat": lat, "lng": lng}
 
+    # Upload image to S3
+    try:
+        from aws_services import upload_accident_image
+        accident_id = f"img-{uuid.uuid4().hex[:12]}"
+        s3_result = upload_accident_image(accident_id, image_bytes, content_type)
+        response["s3"] = s3_result
+        logger.info(f"☁️  Image uploaded to S3: {s3_result['s3_key']}")
+    except Exception as e:
+        logger.warning(f"⚠️  S3 upload failed (non-fatal): {e}")
+        response["s3"] = {"error": str(e)}
+
     logger.info(
         f"✅ Analysis complete in {elapsed_ms:.0f}ms — "
         f"severity={result['severity_level']}, priority={result['ambulance_priority']}"
     )
 
     return response
+
+
+@image_analysis_router.get("/images/{accident_id}")
+async def get_accident_images(accident_id: str):
+    """List all images stored in S3 for a given accident."""
+    try:
+        from aws_services import list_accident_images
+        images = list_accident_images(accident_id)
+        return {"success": True, "accident_id": accident_id, "images": images, "count": len(images)}
+    except Exception as e:
+        logger.error(f"❌ Failed to list images: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @image_analysis_router.get("/health")

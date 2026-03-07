@@ -22,7 +22,7 @@ import logging
 
 # AWS DynamoDB + SNS integration
 try:
-    from aws_services import store_accident, publish_alert, get_accident as dynamo_get_accident, update_accident_status
+    from aws_services import store_accident, publish_alert, get_accident as dynamo_get_accident, update_accident_status, upload_accident_image, list_accident_images
     AWS_ENABLED = True
 except Exception as _aws_err:
     AWS_ENABLED = False
@@ -411,7 +411,7 @@ async def accident_webhook(
                 logger.info(f"✅ Accident stored in DynamoDB: {dynamo_record['accident_id']}")
                 
                 if data.latitude and data.longitude:
-                    sns_msg_id = publish_alert(data.latitude, data.longitude, accident_id)
+                    sns_msg_id = publish_alert(data.latitude, data.longitude, accident_id, impact_force=data.impact_force or 0, device_id=data.device_id or '')
                     logger.info(f"✅ SNS alert sent: {sns_msg_id}")
             except Exception as aws_err:
                 logger.warning(f"AWS integration error (non-fatal): {aws_err}")
@@ -813,7 +813,7 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
                 impact_force=0,
                 status="sos_triggered",
             )
-            sns_msg_id = publish_alert(location["lat"], location["lng"], request_id)
+            sns_msg_id = publish_alert(location["lat"], location["lng"], request_id, impact_force=0, device_id=f"SOS-{current_user['_id']}")
             logger.info(f"AWS: DynamoDB={dynamo_record['accident_id']}, SNS={sns_msg_id}")
         except Exception as aws_err:
             logger.warning(f"AWS integration error (non-fatal): {aws_err}")
