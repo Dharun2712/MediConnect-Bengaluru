@@ -36,6 +36,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# CloudWatch Logs integration
+try:
+    import watchtower
+    import boto3
+    cw_handler = watchtower.CloudWatchLogHandler(
+        log_group_name="/lifelink/backend",
+        log_stream_name="ec2-fastapi",
+        boto3_client=boto3.client("logs", region_name=os.environ.get("AWS_REGION", "us-east-1")),
+    )
+    cw_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logging.getLogger().addHandler(cw_handler)
+    logger.info("☁️ CloudWatch Logs connected: /lifelink/backend")
+except Exception as _cw_err:
+    logger.warning(f"CloudWatch Logs not available: {_cw_err}")
+
 # ---------- Configuration ----------
 MONGODB_URI = "mongodb+srv://Dharun:Dharun2712@cluster0.yr5quzl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 # The production/testing DB in your cluster is named "smart_ambulance".
