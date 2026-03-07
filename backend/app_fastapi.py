@@ -815,6 +815,16 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
             )
             sns_msg_id = publish_alert(location["lat"], location["lng"], request_id, impact_force=0, device_id=f"SOS-{current_user['_id']}")
             logger.info(f"AWS: DynamoDB={dynamo_record['accident_id']}, SNS={sns_msg_id}")
+
+            # Upload accident image to S3 if provided
+            if payload.image_base64:
+                try:
+                    import base64
+                    image_bytes = base64.b64decode(payload.image_base64)
+                    s3_result = upload_accident_image(request_id, image_bytes, "image/jpeg")
+                    logger.info(f"☁️  Accident image uploaded to S3: {s3_result['s3_key']}")
+                except Exception as s3_err:
+                    logger.warning(f"S3 image upload failed (non-fatal): {s3_err}")
         except Exception as aws_err:
             logger.warning(f"AWS integration error (non-fatal): {aws_err}")
     
