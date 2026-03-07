@@ -20,6 +20,14 @@ import socketio
 from contextlib import asynccontextmanager
 import logging
 
+# AWS DynamoDB + SNS integration
+try:
+    from aws_services import store_accident, publish_alert, get_accident as dynamo_get_accident, update_accident_status
+    AWS_ENABLED = True
+except Exception as _aws_err:
+    AWS_ENABLED = False
+    logging.getLogger(__name__).warning(f"AWS services not available: {_aws_err}")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -383,12 +391,30 @@ async def accident_webhook(
             "processed": False
         }
         
-        # Store in accidents collection
+        # Store in MongoDB accidents collection
         accidents_collection = db.accidents
         result = accidents_collection.insert_one(accident_record)
         accident_id = str(result.inserted_id)
         
-        logger.info(f"✅ Accident recorded with ID: {accident_id}")
+        logger.info(f"✅ Accident recorded in MongoDB with ID: {accident_id}")
+        
+        # Also store in AWS DynamoDB + send SNS alert
+        if AWS_ENABLED:
+            try:
+                dynamo_record = store_accident(
+                    vehicle_id=data.device_id,
+                    latitude=data.latitude or 0,
+                    longitude=data.longitude or 0,
+                    impact_force=data.impact_force or 0,
+                    status="detected",
+                )
+                logger.info(f"✅ Accident stored in DynamoDB: {dynamo_record['accident_id']}")
+                
+                if data.latitude and data.longitude:
+                    sns_msg_id = publish_alert(data.latitude, data.longitude, accident_id)
+                    logger.info(f"✅ SNS alert sent: {sns_msg_id}")
+            except Exception as aws_err:
+                logger.warning(f"AWS integration error (non-fatal): {aws_err}")
         
         # If location is available, auto-create SOS request
         if data.latitude and data.longitude:
@@ -777,6 +803,21 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
     result = patient_requests.insert_one(sos_doc)
     request_id = str(result.inserted_id)
     
+    # Store in AWS DynamoDB + send SNS alert
+    if AWS_ENABLED:
+        try:
+            dynamo_record = store_accident(
+                vehicle_id=f"SOS-{current_user['_id']}",
+                latitude=location["lat"],
+                longitude=location["lng"],
+                impact_force=0,
+                status="sos_triggered",
+            )
+            sns_msg_id = publish_alert(location["lat"], location["lng"], request_id)
+            logger.info(f"AWS: DynamoDB={dynamo_record['accident_id']}, SNS={sns_msg_id}")
+        except Exception as aws_err:
+            logger.warning(f"AWS integration error (non-fatal): {aws_err}")
+    
     # Find nearby drivers
     nearby_drivers = list(ambulance_drivers.find({
         "status": "available",
@@ -1136,7 +1177,8 @@ async def root():
         "status": "running",
         "service": "Smart-Aid FastAPI",
         "version": "2.0.0",
-        "database": db_status
+        "database": db_status,
+        "aws_enabled": AWS_ENABLED
     }
 
 @app.get("/health")
