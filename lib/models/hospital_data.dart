@@ -51,8 +51,8 @@ class HospitalData {
   }
 }
 
-/// Reference point: Sree Sakthi Engineering College, Coimbatore
-const LatLng konguEngineeringCollege = LatLng(11.2219, 76.9482);
+/// Reference point: Saveetha Engineering College, Chennai
+const LatLng konguEngineeringCollege = LatLng(13.0285647, 80.0142324);
 
 /// Calculate distance between two lat/lng points using Haversine formula (in km)
 double calculateDistance(LatLng point1, LatLng point2) {
@@ -68,98 +68,97 @@ double calculateDistance(LatLng point1, LatLng point2) {
   return earthRadius * c;
 }
 
-/// All 8 hospitals near Sree Sakthi Engineering College, Coimbatore
-/// Updated with latest hospital data
+/// All 8 hospitals near Saveetha Engineering College, Chennai
 /// Sorted by distance (nearest first)
 List<HospitalData> getAllHospitals() {
   return [
-    // 1. Sowmiya Hospital — 2.35 km
+    // 1. Saveetha Medical Center — 1.07 km
     HospitalData(
-      id: 'sowmiya_hospital',
-      name: 'Sowmiya Hospital',
-      location: const LatLng(11.237326, 76.9334645),
-      rating: 4.5,
-      bedCount: 120,
-      icuCount: 15,
-      doctorCount: 40,
-      distanceFromReference: 2.35,
-    ),
-    // 2. Subbu Hospital — 2.53 km
-    HospitalData(
-      id: 'subbu_hospital',
-      name: 'Subbu Hospital',
-      location: const LatLng(11.2433146, 76.9562011),
-      rating: 4.3,
-      bedCount: 80,
-      icuCount: 10,
-      doctorCount: 30,
-      distanceFromReference: 2.53,
-    ),
-    // 3. Savidha Hospitals Private Limited — 2.78 km
-    HospitalData(
-      id: 'savidha_hospitals',
-      name: 'Savidha Hospitals Private Limited',
-      location: const LatLng(11.2374497, 76.92818),
-      rating: 4.4,
-      bedCount: 100,
-      icuCount: 12,
-      doctorCount: 35,
-      distanceFromReference: 2.78,
-    ),
-    // 4. GH Hospital — 5.87 km
-    HospitalData(
-      id: 'gh_hospital',
-      name: 'GH Hospital',
-      location: const LatLng(11.1696487, 76.956832),
+      id: 'saveetha_medical_center',
+      name: 'Saveetha Medical Center',
+      location: const LatLng(13.0239381, 80.0055357),
       rating: 4.6,
       bedCount: 200,
       icuCount: 25,
-      doctorCount: 70,
-      distanceFromReference: 5.87,
+      doctorCount: 80,
+      distanceFromReference: 1.07,
     ),
-    // 5. Sri Raj Hospital — 7.23 km
+    // 2. Aachi Hospital — 1.46 km
     HospitalData(
-      id: 'sri_raj_hospital',
-      name: 'Sri Raj Hospital',
-      location: const LatLng(11.1631187, 76.9197141),
-      rating: 4.2,
-      bedCount: 90,
-      icuCount: 10,
-      doctorCount: 32,
-      distanceFromReference: 7.23,
-    ),
-    // 6. K R Hospital — 8.35 km
-    HospitalData(
-      id: 'kr_hospital',
-      name: 'K R Hospital',
-      location: const LatLng(11.1481273, 76.9336793),
+      id: 'aachi_hospital',
+      name: 'Aachi Hospital',
+      location: const LatLng(13.0405157, 80.0077017),
       rating: 4.3,
-      bedCount: 110,
-      icuCount: 14,
-      doctorCount: 38,
-      distanceFromReference: 8.35,
+      bedCount: 100,
+      icuCount: 12,
+      doctorCount: 35,
+      distanceFromReference: 1.46,
     ),
-    // 7. Sakthi Hospitals — 12.24 km
+    // 3. Shifa Medicals & SP Clinic Emergency 24hrs & Lab — 1.78 km
     HospitalData(
-      id: 'sakthi_hospitals',
-      name: 'Sakthi Hospitals',
-      location: const LatLng(11.2995436, 76.8685783),
+      id: 'shifa_medicals',
+      name: 'Shifa Medicals & SP Clinic',
+      location: const LatLng(13.0381752, 80.0286376),
+      rating: 4.2,
+      bedCount: 60,
+      icuCount: 8,
+      doctorCount: 20,
+      distanceFromReference: 1.78,
+    ),
+    // 4. Panimalar Medical College Hospital — 2.61 km
+    HospitalData(
+      id: 'panimalar_medical_college',
+      name: 'Panimalar Medical College Hospital',
+      location: const LatLng(13.0437301, 80.0347024),
+      rating: 4.5,
+      bedCount: 300,
+      icuCount: 30,
+      doctorCount: 100,
+      distanceFromReference: 2.61,
+    ),
+    // 5. Hopewell Hospital — 2.99 km
+    HospitalData(
+      id: 'hopewell_hospital',
+      name: 'Hopewell Hospital',
+      location: const LatLng(13.0318194, 79.9874457),
+      rating: 4.4,
+      bedCount: 120,
+      icuCount: 15,
+      doctorCount: 45,
+      distanceFromReference: 2.99,
+    ),
+    // 6. Pettai 24 Hours Hospital — 2.61 km
+    HospitalData(
+      id: 'pettai_24hrs_hospital',
+      name: 'Pettai 24 Hours Hospital',
+      location: const LatLng(13.0437301, 80.0347024),
+      rating: 4.1,
+      bedCount: 80,
+      icuCount: 10,
+      doctorCount: 25,
+      distanceFromReference: 2.61,
+    ),
+    // 7. Gandhi Hospital — 6.15 km
+    HospitalData(
+      id: 'gandhi_hospital',
+      name: 'Gandhi Hospital',
+      location: const LatLng(13.0033869, 79.961439),
+      rating: 4.5,
+      bedCount: 250,
+      icuCount: 30,
+      doctorCount: 90,
+      distanceFromReference: 6.15,
+    ),
+    // 8. Be Well Hospitals Poonamallee — 11.06 km
+    HospitalData(
+      id: 'be_well_hospitals',
+      name: 'Be Well Hospitals Poonamallee',
+      location: const LatLng(13.0288357, 80.1137108),
       rating: 4.7,
       bedCount: 180,
       icuCount: 22,
       doctorCount: 65,
-      distanceFromReference: 12.24,
-    ),
-    // 8. KPS Hospitals (P) LTD — 12.24 km
-    HospitalData(
-      id: 'kps_hospitals',
-      name: 'KPS Hospitals (P) LTD',
-      location: const LatLng(11.2995436, 76.8685783),
-      rating: 4.7,
-      bedCount: 180,
-      icuCount: 22,
-      doctorCount: 65,
-      distanceFromReference: 12.24,
+      distanceFromReference: 11.06,
     ),
   ];
 }

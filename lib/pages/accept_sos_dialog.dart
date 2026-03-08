@@ -162,6 +162,10 @@ class _AcceptSOSDialogState extends State<AcceptSOSDialog> {
                       ),
                     ),
 
+                    // Ambulance Dispatch Recommendation
+                    if (widget.request['ambulance_dispatch'] != null)
+                      _buildDispatchCard(widget.request['ambulance_dispatch']),
+
                     SizedBox(height: AppTheme.spacingL),
 
                     // Initial Risk Assessment
@@ -255,6 +259,121 @@ class _AcceptSOSDialogState extends State<AcceptSOSDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDispatchCard(Map<String, dynamic> dispatch) {
+    final ambulanceLevel = dispatch['ambulance_level'] ?? 'BLS';
+    final ambulanceType = dispatch['ambulance_type'] ?? 'Basic Life Support';
+    final severityLevel = dispatch['severity_level'] ?? 'LOW';
+    final dispatchReason = dispatch['dispatch_reason'] ?? '';
+    final priority = dispatch['priority'] ?? 1;
+
+    Color levelColor;
+    IconData levelIcon;
+    switch (ambulanceLevel) {
+      case 'ICU':
+        levelColor = Colors.red.shade700;
+        levelIcon = Icons.emergency;
+        break;
+      case 'ALS':
+        levelColor = Colors.orange.shade700;
+        levelIcon = Icons.medical_services;
+        break;
+      default:
+        levelColor = Colors.green.shade700;
+        levelIcon = Icons.local_hospital;
+    }
+
+    return Container(
+      margin: EdgeInsets.only(bottom: AppTheme.spacingM),
+      padding: EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [levelColor.withOpacity(0.08), levelColor.withOpacity(0.02)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: levelColor.withOpacity(0.4), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: levelColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(levelIcon, color: levelColor, size: 22),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dispatch: $ambulanceLevel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: levelColor,
+                      ),
+                    ),
+                    Text(
+                      ambulanceType,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: levelColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'P$priority',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (dispatchReason.isNotEmpty) ...[
+            SizedBox(height: 8),
+            Text(
+              dispatchReason,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
+          SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 14, color: levelColor),
+              SizedBox(width: 4),
+              Text(
+                'Severity: $severityLevel',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: levelColor,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

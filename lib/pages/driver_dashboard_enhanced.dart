@@ -1692,6 +1692,9 @@ class _DriverDashboardEnhancedState extends State<DriverDashboardEnhanced> {
                             requestId: request['_id']?.toString(),
                             hasImage: request['has_image'] == true,
                           ),
+                        // Ambulance Dispatch Recommendation
+                        if (request['ambulance_dispatch'] != null)
+                          _buildDispatchBadge(request['ambulance_dispatch']),
                         // Details section
                         Padding(
                           padding: const EdgeInsets.all(16),
@@ -1801,6 +1804,116 @@ class _DriverDashboardEnhancedState extends State<DriverDashboardEnhanced> {
                 }
               },
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDispatchBadge(Map<String, dynamic> dispatch) {
+    final type = dispatch['ambulance_type'] ?? 'ALS';
+    final reason = dispatch['dispatch_reason'] ?? '';
+    final priority = dispatch['priority'] ?? 'MEDIUM';
+
+    Color bgColor;
+    Color textColor;
+    IconData icon;
+    String label;
+    switch (type) {
+      case 'ICU':
+        bgColor = const Color(0xFFFFEBEE);
+        textColor = const Color(0xFFC62828);
+        icon = Icons.local_hospital;
+        label = 'ICU Ambulance – Critical Care';
+        break;
+      case 'ALS':
+        bgColor = const Color(0xFFFFF3E0);
+        textColor = const Color(0xFFE65100);
+        icon = Icons.medical_services;
+        label = 'ALS Ambulance – Advanced Life Support';
+        break;
+      default: // BLS
+        bgColor = const Color(0xFFE8F5E9);
+        textColor = const Color(0xFF2E7D32);
+        icon = Icons.health_and_safety;
+        label = 'BLS Ambulance – Basic Life Support';
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: textColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: textColor.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: textColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      type,
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: textColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        priority,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: textColor.withOpacity(0.8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (reason.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    reason,
+                    style: TextStyle(
+                      color: textColor.withOpacity(0.65),
+                      fontSize: 10,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

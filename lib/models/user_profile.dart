@@ -92,15 +92,15 @@ class HospitalProfile {
     required this.doctorsAvailable,
   });
 
-  // Dummy data for KMC Hospital
+  // Dummy data for Saveetha Medical Center
   factory HospitalProfile.dummy() {
     return HospitalProfile(
-      name: 'KMC Hospital',
-      email: 'kmchospital@gmail.com',
-      address: '02/2, Gandhi Nagar Colony, Perundurai Road, Erode, Tamil Nadu 638052',
-      icuCount: 8,
-      bedCount: 30,
-      doctorsAvailable: 10,
+      name: 'Saveetha Medical Center',
+      email: 'saveethamedical@gmail.com',
+      address: 'Saveetha Nagar, Thandalam, Chennai, Tamil Nadu 602105',
+      icuCount: 25,
+      bedCount: 200,
+      doctorsAvailable: 80,
     );
   }
 }

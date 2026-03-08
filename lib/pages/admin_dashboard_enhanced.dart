@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/hospital_service.dart';
 import '../services/socket_service.dart';
+import '../services/emergency_alert_service.dart';
 import '../config/app_theme.dart';
 import 'hospital_profile_page.dart';
 import 'patient_request_details_dialog.dart';
@@ -21,6 +22,7 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
   final _authService = AuthService();
   final _hospitalService = HospitalService();
   final _socketService = SocketService();
+  final _emergencyAlert = EmergencyAlertService();
 
   GoogleMapController? _mapController;
   
@@ -43,6 +45,7 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
   @override
   void initState() {
     super.initState();
+    _emergencyAlert.initialize();
     _loadPatientRequests();
     _setupSocketListeners();
   }
@@ -57,8 +60,16 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
           'admin',
         );
 
-        // Join admin broadcast room for immediate notifications
-        _socketService.socket?.emit('join', {'room': 'admin'});
+        // Join admin room reliably — must happen AFTER socket connects
+        // The socket service auto-joins 'admins' but backend also emits to 'admin'
+        _socketService.socket?.on('connect', (_) {
+          _socketService.socket?.emit('join', {'room': 'admin'});
+          print('[Admin] ✅ Joined admin room after connect');
+        });
+        // Also try immediately in case already connected
+        if (_socketService.isConnected) {
+          _socketService.socket?.emit('join', {'room': 'admin'});
+        }
 
         // Listen for injury assessments
         _socketService.socket?.on('injury_assessment_submitted', (data) {
@@ -73,14 +84,18 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
           print('[Admin] ⚡ URGENT: Incoming patient notification: $data');
           if (mounted) {
             _handleIncomingPatient(data);
+            _emergencyAlert.playEmergencyAlert();
+            _showIncomingPatientModal(data is Map<String, dynamic> ? data : {});
           }
         });
 
-        // Listen for SOS alerts (backup listener)
+        // Listen for SOS alerts — show modal for every new emergency
         _socketService.socket?.on('sos_alert', (data) {
           print('[Admin] 🚨 SOS Alert received: $data');
           if (mounted) {
             _loadPatientRequests(); // Refresh immediately
+            _emergencyAlert.playEmergencyAlert();
+            _showNewSOSModal(data is Map<String, dynamic> ? data : {});
           }
         });
 
@@ -125,13 +140,240 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
 
   void _handleIncomingPatient(dynamic data) {
     setState(() {
-      // Refresh the patient requests list
       _loadPatientRequests();
     });
-
     _showSnackBar(
-      'New patient incoming: ${data['patient_name'] ?? 'Arun'} - ETA: ${data['eta'] ?? 'Unknown'}',
+      '🚑 Patient incoming: ${data['patient_name'] ?? 'Unknown'} — ETA: ${data['eta'] ?? 'Unknown'}',
       backgroundColor: AppTheme.primary,
+    );
+  }
+
+  /// Modal shown when a patient is dispatched to THIS hospital (after driver accepts)
+  void _showIncomingPatientModal(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final patientName = data['patient_name'] ?? data['user_name'] ?? 'Unknown';
+    final eta = data['eta'] ?? data['eta_minutes'];
+    final condition = data['condition'] ?? '';
+    final severity = (data['preliminary_severity'] ?? '').toString().toUpperCase();
+    final dispatch = data['ambulance_dispatch'] as Map<String, dynamic>?;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.blue[50],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.local_hospital, color: Colors.blue, size: 28),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                '🚑 PATIENT INCOMING',
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'An ambulance is en route to your hospital!',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _modalRow(Icons.person, 'Patient', patientName),
+                  if (condition.isNotEmpty) _modalRow(Icons.medical_information, 'Condition', condition),
+                  if (severity.isNotEmpty) _modalRow(Icons.warning_amber, 'Severity', severity),
+                  if (eta != null) _modalRow(Icons.timer, 'ETA', '$eta min'),
+                  if (dispatch != null)
+                    _modalRow(
+                      Icons.airport_shuttle,
+                      'Ambulance',
+                      '${dispatch['ambulance_type'] ?? ''} — ${dispatch['ambulance_level'] ?? ''}',
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.volume_up, color: Colors.blue[700], size: 18),
+                const SizedBox(width: 6),
+                Text('Alert is playing...', style: TextStyle(color: Colors.blue[700], fontStyle: FontStyle.italic, fontSize: 13)),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _emergencyAlert.stopAlert();
+              Navigator.pop(ctx);
+            },
+            child: Text('Dismiss', style: TextStyle(color: Colors.grey[700])),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.check_circle, size: 18),
+            label: const Text('Prepare Admission'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              _emergencyAlert.stopAlert();
+              Navigator.pop(ctx);
+              _loadPatientRequests();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Modal shown on every new SOS alert broadcast in the area
+  void _showNewSOSModal(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final patientName = data['user_name'] ?? data['patient_name'] ?? 'Unknown';
+    final condition = data['condition'] ?? '';
+    final severity = (data['preliminary_severity'] ?? '').toString().toUpperCase();
+    final dispatch = data['ambulance_dispatch'] as Map<String, dynamic>?;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.red[50],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.emergency, color: Colors.red, size: 28),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '🚨 NEW SOS REQUEST',
+                style: TextStyle(
+                  color: Colors.red[900],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'A new emergency request has been received!',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _modalRow(Icons.person, 'Patient', patientName),
+                  if (condition.isNotEmpty) _modalRow(Icons.medical_information, 'Condition', condition),
+                  if (severity.isNotEmpty) _modalRow(Icons.warning_amber, 'Severity', severity),
+                  if (dispatch != null)
+                    _modalRow(
+                      Icons.airport_shuttle,
+                      'Ambulance Type',
+                      '${dispatch['ambulance_type'] ?? ''} — ${dispatch['priority'] ?? ''} priority',
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.volume_up, color: Colors.red[700], size: 18),
+                const SizedBox(width: 6),
+                Text('Alert is playing...', style: TextStyle(color: Colors.red[700], fontStyle: FontStyle.italic, fontSize: 13)),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _emergencyAlert.stopAlert();
+              Navigator.pop(ctx);
+            },
+            child: Text('Dismiss', style: TextStyle(color: Colors.grey[700])),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('View Requests'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              _emergencyAlert.stopAlert();
+              Navigator.pop(ctx);
+              _loadPatientRequests();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modalRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text('$label: ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
     );
   }
 
@@ -235,124 +477,112 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
     _markers.clear();
     _polylines.clear();
 
-    // M Kumarasamy College of Engineering reference location
-    const mkceLocation = LatLng(10.960, 78.060);
+    // Saveetha Engineering College reference location
+    const saveethaLocation = LatLng(13.0285647, 80.0142324);
     
     _markers.add(Marker(
-      markerId: const MarkerId('mkce_reference'),
-      position: mkceLocation,
+      markerId: const MarkerId('saveetha_reference'),
+      position: saveethaLocation,
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
       infoWindow: const InfoWindow(
-        title: '📍 M Kumarasamy College of Engineering',
+        title: '📍 Saveetha Engineering College',
         snippet: 'Reference location for nearest hospitals',
       ),
       anchor: const Offset(0.5, 0.5),
     ));
 
-    // 1. Apollo Hospital | Best Hospital in Karur - 0.26 km
+    // 1. Saveetha Medical Center — 1.07 km
     _markers.add(Marker(
-      markerId: const MarkerId('apollo_hospital_karur'),
-      position: const LatLng(10.9604417, 78.0576737),
+      markerId: const MarkerId('saveetha_medical_center'),
+      position: const LatLng(13.0239381, 80.0055357),
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       infoWindow: const InfoWindow(
-        title: '🏥 Apollo Hospital ⭐ NEAREST #1',
-        snippet: '0.26 km • ⭐4.8 • 200 beds • 30 ICU • 80 doctors',
+        title: '🏥 Saveetha Medical Center ⭐ NEAREST #1',
+        snippet: '1.07 km • ⭐4.6 • 200 beds • 25 ICU • 80 doctors',
       ),
       anchor: const Offset(0.5, 0.5),
     ));
 
-    // 2. Senthil's Emergency Care - 0.26 km
+    // 2. Aachi Hospital — 1.46 km
     _markers.add(Marker(
-      markerId: const MarkerId('senthils_emergency_care'),
-      position: const LatLng(10.9622977, 78.0605207),
+      markerId: const MarkerId('aachi_hospital'),
+      position: const LatLng(13.0405157, 80.0077017),
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       infoWindow: const InfoWindow(
-        title: "🏥 Senthil's Emergency Care ⭐ NEAREST #2",
-        snippet: '0.26 km • ⭐4.4 • 60 beds • 8 ICU • 25 doctors',
+        title: '🏥 Aachi Hospital',
+        snippet: '1.46 km • ⭐4.3 • 100 beds • 12 ICU • 35 doctors',
       ),
       anchor: const Offset(0.5, 0.5),
     ));
 
-    // 3. Amaravathi Hospital - 0.47 km
+    // 3. Shifa Medicals & SP Clinic — 1.78 km
     _markers.add(Marker(
-      markerId: const MarkerId('amaravathi_hospital'),
-      position: const LatLng(10.9616861, 78.0639596),
+      markerId: const MarkerId('shifa_medicals'),
+      position: const LatLng(13.0381752, 80.0286376),
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       infoWindow: const InfoWindow(
-        title: '🏥 Amaravathi Hospital',
-        snippet: '0.47 km • ⭐4.5 • 120 beds • 15 ICU • 45 doctors',
+        title: '🏥 Shifa Medicals & SP Clinic',
+        snippet: '1.78 km • ⭐4.2 • 60 beds • 8 ICU • 20 doctors',
       ),
       anchor: const Offset(0.5, 0.5),
     ));
 
-    // 4. Kabila Hospital - 0.47 km
+    // 4. Panimalar Medical College Hospital — 2.61 km
     _markers.add(Marker(
-      markerId: const MarkerId('kabila_hospital'),
-      position: const LatLng(10.9616861, 78.0639596),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      markerId: const MarkerId('panimalar_medical_college'),
+      position: const LatLng(13.0437301, 80.0347024),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
       infoWindow: const InfoWindow(
-        title: '🏥 Kabila Hospital',
-        snippet: '0.47 km • ⭐4.3 • 100 beds • 12 ICU • 35 doctors',
+        title: '🏥 Panimalar Medical College Hospital',
+        snippet: '2.61 km • ⭐4.5 • 300 beds • 30 ICU • 100 doctors',
       ),
       anchor: const Offset(0.5, 0.5),
     ));
 
-    // 5. Achimuthu Hospital - 0.78 km
+    // 5. Hopewell Hospital — 2.99 km
     _markers.add(Marker(
-      markerId: const MarkerId('achimuthu_hospital'),
-      position: const LatLng(10.9625378, 78.0533689),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      markerId: const MarkerId('hopewell_hospital'),
+      position: const LatLng(13.0318194, 79.9874457),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
       infoWindow: const InfoWindow(
-        title: '🏥 Achimuthu Hospital',
-        snippet: '0.78 km • ⭐4.2 • 80 beds • 10 ICU • 30 doctors',
+        title: '🏥 Hopewell Hospital',
+        snippet: '2.99 km • ⭐4.4 • 120 beds • 15 ICU • 45 doctors',
       ),
       anchor: const Offset(0.5, 0.5),
     ));
 
-    // 6. Krishna Medical Center Hospital (KMC) - 1.44 km
+    // 6. Pettai 24 Hours Hospital — 2.61 km
     _markers.add(Marker(
-      markerId: const MarkerId('krishna_medical_center'),
-      position: const LatLng(10.9642677, 78.0475263),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      markerId: const MarkerId('pettai_24hrs_hospital'),
+      position: const LatLng(13.0437301, 80.0347024),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
       infoWindow: const InfoWindow(
-        title: '🏥 Krishna Medical Center (KMC)',
-        snippet: '1.44 km • ⭐4.6 • 150 beds • 20 ICU • 55 doctors',
+        title: '🏥 Pettai 24 Hours Hospital',
+        snippet: '2.61 km • ⭐4.1 • 80 beds • 10 ICU • 25 doctors',
       ),
       anchor: const Offset(0.5, 0.5),
     ));
 
-    // 7. AKSHAYA HOSPITAL - 1.88 km
+    // 7. Gandhi Hospital — 6.15 km
     _markers.add(Marker(
-      markerId: const MarkerId('akshaya_hospital'),
-      position: const LatLng(10.965861, 78.0438867),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-      infoWindow: const InfoWindow(
-        title: '🏥 AKSHAYA HOSPITAL',
-        snippet: '1.88 km • ⭐4.3 • 90 beds • 12 ICU • 35 doctors',
-      ),
-      anchor: const Offset(0.5, 0.5),
-    ));
-
-    // 8. Karur Government Medical College & Hospital - 3.58 km
-    _markers.add(Marker(
-      markerId: const MarkerId('karur_govt_medical_college'),
-      position: const LatLng(10.9503199, 78.0912556),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-      infoWindow: const InfoWindow(
-        title: '🏥 Karur Govt Medical College & Hospital',
-        snippet: '3.58 km • ⭐4.7 • 300 beds • 40 ICU • 120 doctors',
-      ),
-      anchor: const Offset(0.5, 0.5),
-    ));
-
-    // 9. Government Hospital - 15.52 km
-    _markers.add(Marker(
-      markerId: const MarkerId('government_hospital_karur'),
-      position: const LatLng(11.0580563, 77.9588177),
+      markerId: const MarkerId('gandhi_hospital'),
+      position: const LatLng(13.0033869, 79.961439),
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       infoWindow: const InfoWindow(
-        title: '🏥 Government Hospital',
-        snippet: '15.52 km • ⭐4.1 • 180 beds • 20 ICU • 70 doctors',
+        title: '🏥 Gandhi Hospital',
+        snippet: '6.15 km • ⭐4.5 • 250 beds • 30 ICU • 90 doctors',
+      ),
+      anchor: const Offset(0.5, 0.5),
+    ));
+
+    // 8. Be Well Hospitals Poonamallee — 11.06 km
+    _markers.add(Marker(
+      markerId: const MarkerId('be_well_hospitals'),
+      position: const LatLng(13.0288357, 80.1137108),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      infoWindow: const InfoWindow(
+        title: '🏥 Be Well Hospitals Poonamallee',
+        snippet: '11.06 km • ⭐4.7 • 180 beds • 22 ICU • 65 doctors',
       ),
       anchor: const Offset(0.5, 0.5),
     ));
@@ -789,15 +1019,15 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
       height: 300,
       child: GoogleMap(
         initialCameraPosition: const CameraPosition(
-          target: LatLng(10.960, 78.060), // M Kumarasamy College of Engineering
-          zoom: 14,
+          target: LatLng(13.0285647, 80.0142324), // Saveetha Engineering College, Chennai
+          zoom: 13,
         ),
         onMapCreated: (controller) {
           _mapController = controller;
-          // Move camera to M Kumarasamy College area on load
+          // Move camera to Saveetha Engineering College area on load
           controller.animateCamera(
             CameraUpdate.newLatLngZoom(
-              const LatLng(10.960, 78.060), // M Kumarasamy College of Engineering
+              const LatLng(13.0285647, 80.0142324), // Saveetha Engineering College, Chennai
               14,
             ),
           );
@@ -1125,6 +1355,95 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
                               ),
                             ),
                             
+                            // Ambulance Dispatch Info
+                            if (patient['ambulance_dispatch'] != null) ...[
+                              const SizedBox(height: 12),
+                              Builder(builder: (context) {
+                                final dispatch = patient['ambulance_dispatch'] as Map<String, dynamic>;
+                                final level = dispatch['ambulance_level'] ?? 'BLS';
+                                final type = dispatch['ambulance_type'] ?? 'Basic Life Support';
+                                final reason = dispatch['dispatch_reason'] ?? '';
+                                final priority = dispatch['priority'] ?? 1;
+                                final Color dColor;
+                                final IconData dIcon;
+                                switch (level) {
+                                  case 'ICU':
+                                    dColor = Colors.red.shade700;
+                                    dIcon = Icons.emergency;
+                                    break;
+                                  case 'ALS':
+                                    dColor = Colors.orange.shade700;
+                                    dIcon = Icons.medical_services;
+                                    break;
+                                  default:
+                                    dColor = Colors.green.shade700;
+                                    dIcon = Icons.local_hospital;
+                                }
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [dColor.withOpacity(0.1), dColor.withOpacity(0.03)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: dColor.withOpacity(0.4), width: 1.5),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: dColor.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(dIcon, color: dColor, size: 20),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Dispatch: $level — $type',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: dColor,
+                                              ),
+                                            ),
+                                            if (reason.toString().isNotEmpty)
+                                              Text(
+                                                reason.toString(),
+                                                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: dColor,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          'P$priority',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+
                             // Assessment Notes (if available)
                             if (hasAssessment && patient['injury_notes'] != null && patient['injury_notes'] != '') ...[
                               const SizedBox(height: 12),

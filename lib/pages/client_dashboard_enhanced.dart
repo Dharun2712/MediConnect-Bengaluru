@@ -1549,7 +1549,7 @@ class _ClientDashboardEnhancedState extends State<ClientDashboardEnhanced> {
       // Use specific ambulance details for admitted requests
       driverName = 'Kishore';
       vehicleNumber = 'TN 28 8976';
-      hospitalName = 'Apollo Hospital';
+      hospitalName = 'Saveetha Medical Center';
     } else if (status.toLowerCase() == 'assessed') {
       // For assessed status, don't show hospital name yet
       driverName = 'Kishore';
@@ -1560,7 +1560,7 @@ class _ClientDashboardEnhancedState extends State<ClientDashboardEnhanced> {
       // Use specific ambulance details for completed/accepted requests
       driverName = 'Kishore';
       vehicleNumber = 'TN 28 8976';
-      hospitalName = 'Apollo Hospital';
+      hospitalName = 'Saveetha Medical Center';
     } else {
       // Try to get from backend data for other statuses
       driverName =
@@ -1708,6 +1708,124 @@ class _ClientDashboardEnhancedState extends State<ClientDashboardEnhanced> {
                     ],
                   ),
                 ),
+              ],
+              // Ambulance Dispatch Type
+              if (request['ambulance_dispatch'] != null) ...[
+                const SizedBox(height: 16),
+                Builder(builder: (context) {
+                  final dispatch = request['ambulance_dispatch'] as Map<String, dynamic>;
+                  final ambType = dispatch['ambulance_type'] ?? 'ALS';
+                  final ambLevel = dispatch['ambulance_level'] ?? '';
+                  final reason = dispatch['dispatch_reason'] ?? '';
+                  final priority = dispatch['priority'] ?? 'MEDIUM';
+
+                  Color typeColor;
+                  IconData typeIcon;
+                  String typeName;
+                  switch (ambType) {
+                    case 'ICU':
+                      typeColor = Colors.red.shade700;
+                      typeIcon = Icons.emergency;
+                      typeName = 'ICU — Critical Care Ambulance';
+                      break;
+                    case 'ALS':
+                      typeColor = Colors.orange.shade700;
+                      typeIcon = Icons.medical_services;
+                      typeName = 'ALS — Advanced Life Support';
+                      break;
+                    default:
+                      typeColor = Colors.green.shade700;
+                      typeIcon = Icons.health_and_safety;
+                      typeName = 'BLS — Basic Life Support';
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [typeColor.withOpacity(0.08), typeColor.withOpacity(0.02)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: typeColor.withOpacity(0.4), width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: typeColor.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(typeIcon, color: typeColor, size: 22),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Ambulance Type Assigned',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    typeName,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: typeColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: typeColor,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                ambType,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (reason.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            reason,
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.priority_high, size: 14, color: typeColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Priority: $priority',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: typeColor),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
               ],
               if (notes.isNotEmpty && notes != 'No additional notes') ...[
                 const Divider(height: 20),

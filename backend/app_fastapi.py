@@ -336,6 +336,131 @@ class ConfirmAdmissionRequest(BaseModel):
 class UpdateCapacityRequest(BaseModel):
     capacity: Dict[str, int]
 
+# ---------- Ambulance Dispatch Decision Engine ----------
+class DispatchRequest(BaseModel):
+    """Input for ambulance dispatch decision"""
+    number_of_people_detected: Optional[int] = 0
+    number_of_vehicles_involved: Optional[int] = 0
+    estimated_injured_people: Optional[int] = 0
+    fire_or_smoke_detected: Optional[bool] = False
+    vehicle_damage_level: Optional[int] = 1  # 1–5
+    manual_sos_triggered: Optional[bool] = False
+    reported_risk_level: Optional[str] = "MEDIUM"  # LOW | MEDIUM | HIGH
+
+def determine_ambulance_dispatch(data: dict) -> dict:
+    """
+    Core dispatch decision logic.
+    Returns severity_level, ambulance_level, ambulance_type, dispatch_reason, priority.
+    """
+    manual = data.get("manual_sos_triggered", False)
+    risk = (data.get("reported_risk_level") or "MEDIUM").upper()
+    damage = data.get("vehicle_damage_level", 1) or 1
+    injured = data.get("estimated_injured_people", 0) or 0
+    fire = data.get("fire_or_smoke_detected", False)
+    vehicles = data.get("number_of_vehicles_involved", 0) or 0
+
+    # --- Manual SOS path ---
+    if manual:
+        if risk == "HIGH":
+            return {
+                "severity_level": "CRITICAL",
+                "ambulance_level": "LEVEL_3_ICU",
+                "ambulance_type": "ICU",
+                "dispatch_reason": "Manual SOS with HIGH risk level reported by user",
+                "priority": "HIGH",
+            }
+        elif risk == "LOW":
+            return {
+                "severity_level": "LOW",
+                "ambulance_level": "LEVEL_1_BLS",
+                "ambulance_type": "BLS",
+                "dispatch_reason": "Manual SOS with LOW risk — basic life support sufficient",
+                "priority": "LOW",
+            }
+        else:
+            return {
+                "severity_level": "MEDIUM",
+                "ambulance_level": "LEVEL_2_ALS",
+                "ambulance_type": "ALS",
+                "dispatch_reason": "Manual SOS with MEDIUM risk — advanced life support needed",
+                "priority": "MEDIUM",
+            }
+
+    # --- AI / sensor accident analysis path ---
+    # Level 3 – ICU
+    if damage >= 3 and injured >= 3 and fire:
+        return {
+            "severity_level": "CRITICAL",
+            "ambulance_level": "LEVEL_3_ICU",
+            "ambulance_type": "ICU",
+            "dispatch_reason": f"Major accident: damage level {damage}/5, {injured} injured, fire/smoke detected",
+            "priority": "HIGH",
+        }
+    # Still Level 3 for very high damage even without fire
+    if damage >= 4 and injured >= 3:
+        return {
+            "severity_level": "CRITICAL",
+            "ambulance_level": "LEVEL_3_ICU",
+            "ambulance_type": "ICU",
+            "dispatch_reason": f"Severe collision: damage level {damage}/5, {injured} injured, multiple trauma likely",
+            "priority": "HIGH",
+        }
+
+    # Level 2 – ALS
+    if damage >= 2 and injured >= 2 and vehicles >= 2:
+        return {
+            "severity_level": "MEDIUM",
+            "ambulance_level": "LEVEL_2_ALS",
+            "ambulance_type": "ALS",
+            "dispatch_reason": f"Multi-vehicle incident: {vehicles} vehicles, {injured} injured, damage level {damage}/5",
+            "priority": "MEDIUM",
+        }
+    if damage >= 2 and injured >= 2:
+        return {
+            "severity_level": "MEDIUM",
+            "ambulance_level": "LEVEL_2_ALS",
+            "ambulance_type": "ALS",
+            "dispatch_reason": f"Moderate accident: damage level {damage}/5, {injured} injured",
+            "priority": "MEDIUM",
+        }
+    if fire:
+        return {
+            "severity_level": "MEDIUM",
+            "ambulance_level": "LEVEL_2_ALS",
+            "ambulance_type": "ALS",
+            "dispatch_reason": "Fire/smoke detected — advanced life support dispatched as precaution",
+            "priority": "MEDIUM",
+        }
+
+    # Level 1 – BLS (default)
+    return {
+        "severity_level": "LOW",
+        "ambulance_level": "LEVEL_1_BLS",
+        "ambulance_type": "BLS",
+        "dispatch_reason": f"Minor incident: damage level {damage}/5, {injured} injured, no fire",
+        "priority": "LOW",
+    }
+
+@app.post("/api/dispatch/decide")
+async def dispatch_decide(payload: DispatchRequest):
+    """
+    Standalone endpoint: given accident parameters, returns the recommended
+    ambulance type (BLS / ALS / ICU) and priority.
+    """
+    result = determine_ambulance_dispatch(payload.dict())
+    return result
+
+@app.get("/api/dispatch/levels")
+async def dispatch_levels():
+    """Return available ambulance dispatch levels for reference"""
+    return {
+        "levels": [
+            {"level": "LEVEL_1_BLS", "type": "BLS", "name": "Basic Life Support", "description": "Minor injuries or low-risk incidents"},
+            {"level": "LEVEL_2_ALS", "type": "ALS", "name": "Advanced Life Support", "description": "Serious injuries requiring advanced medical care"},
+            {"level": "LEVEL_3_ICU", "type": "ICU", "name": "Critical Care Ambulance", "description": "Life-threatening situations or severe accidents"},
+        ]
+    }
+
 # ESP32 Accident Detection Models
 class ESP32AccidentData(BaseModel):
     device_id: str
@@ -447,6 +572,20 @@ async def accident_webhook(
             sos_result = patient_requests.insert_one(sos_request)
             sos_id = str(sos_result.inserted_id)
             
+            # Compute ambulance dispatch for ESP32 accident
+            esp_dispatch = determine_ambulance_dispatch({
+                "vehicle_damage_level": min(5, int((data.impact_force or 3) * 1.0)),
+                "estimated_injured_people": 1,
+                "fire_or_smoke_detected": (data.temperature or 0) > 60,
+                "number_of_vehicles_involved": 1,
+                "manual_sos_triggered": False,
+            })
+            patient_requests.update_one(
+                {"_id": sos_result.inserted_id},
+                {"$set": {"ambulance_dispatch": esp_dispatch}}
+            )
+            logger.info(f"🚑 ESP32 dispatch: {esp_dispatch['ambulance_type']} ({esp_dispatch['priority']})")
+            
             logger.info(f"🆘 Auto-SOS created with ID: {sos_id}")
             
             # Emit Socket.IO events to notify drivers
@@ -467,7 +606,8 @@ async def accident_webhook(
                     "latitude": data.latitude,
                     "longitude": data.longitude,
                     "auto_triggered": True,
-                    "status": "pending"
+                    "status": "pending",
+                    "ambulance_dispatch": esp_dispatch
                 }
                 
                 # Emit to drivers room - use the event name driver is listening for
@@ -800,6 +940,31 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
     if payload.accident_analysis:
         sos_doc["accident_analysis"] = payload.accident_analysis
     
+    # --- Auto-compute ambulance dispatch recommendation ---
+    dispatch_input = {}
+    if payload.accident_analysis:
+        aa = payload.accident_analysis
+        dispatch_input = {
+            "number_of_people_detected": aa.get("people_detected", 0),
+            "number_of_vehicles_involved": aa.get("vehicles_detected", 0),
+            "estimated_injured_people": aa.get("possible_injured", 0),
+            "fire_or_smoke_detected": aa.get("fire_detected", False),
+            "vehicle_damage_level": aa.get("damage_level", 1),
+            "manual_sos_triggered": False,
+        }
+    else:
+        # Manual SOS or voice/sensor trigger — map preliminary_severity
+        sev = (payload.preliminary_severity or "unknown").lower()
+        risk_map = {"critical": "HIGH", "high": "HIGH", "mid": "MEDIUM", "low": "LOW", "unknown": "MEDIUM"}
+        dispatch_input = {
+            "manual_sos_triggered": True,
+            "reported_risk_level": risk_map.get(sev, "MEDIUM"),
+        }
+    
+    dispatch_result = determine_ambulance_dispatch(dispatch_input)
+    sos_doc["ambulance_dispatch"] = dispatch_result
+    logger.info(f"🚑 Dispatch recommendation: {dispatch_result['ambulance_type']} ({dispatch_result['priority']})")
+    
     result = patient_requests.insert_one(sos_doc)
     request_id = str(result.inserted_id)
     
@@ -847,7 +1012,8 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
         "preliminary_severity": payload.preliminary_severity,
         "contact": user_contact,
         "ttl_seconds": 30,
-        "has_image": payload.image_base64 is not None
+        "has_image": payload.image_base64 is not None,
+        "ambulance_dispatch": dispatch_result
     }
     
     # Emit new_sos_request (primary event driver listens for - triggers alarm & vibration)
@@ -1001,13 +1167,16 @@ async def accept_request(payload: AcceptRequestRequest, current_user: Dict = Dep
         "has_medical_allergies": sos_req.get("has_medical_allergies", False),
         "condition": sos_req.get("condition", "unknown"),
         "preliminary_severity": sos_req.get("preliminary_severity", "unknown"),
+        "ambulance_dispatch": sos_req.get("ambulance_dispatch"),
         "status": "accepted",
         "timestamp": datetime.datetime.utcnow().isoformat()
     }
     
-    # Send both events for reliability
+    # Send to both 'admin' and 'admins' rooms for reliability (socket service joins 'admins')
     await sio.emit('driver_accepted', hospital_payload, room='admin')
     await sio.emit('incoming_patient', hospital_payload, room='admin')
+    await sio.emit('driver_accepted', hospital_payload, room='admins')
+    await sio.emit('incoming_patient', hospital_payload, room='admins')
     
     return {"success": True}
 
@@ -1036,15 +1205,17 @@ async def submit_injury_assessment(payload: InjuryAssessmentRequest, current_use
     # Get request details
     req = patient_requests.find_one({"_id": str_to_objectid(payload.request_id)})
     
-    # Notify hospital admins
-    await sio.emit('injury_assessment_submitted', {
+    # Notify hospital admins — emit to both room names for reliability
+    assessment_payload = {
         "request_id": payload.request_id,
         "patient_name": req.get("user_name"),
         "injury_risk": payload.injury_risk,
         "injury_notes": payload.injury_notes,
         "blood_group": req.get("blood_group"),
         "has_medical_allergies": req.get("has_medical_allergies")
-    }, room='admin')
+    }
+    await sio.emit('injury_assessment_submitted', assessment_payload, room='admin')
+    await sio.emit('injury_assessment_submitted', assessment_payload, room='admins')
     
     return {"success": True}
 

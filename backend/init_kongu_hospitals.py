@@ -1,7 +1,7 @@
 """
-Initialize hospitals near Sree Sakthi Engineering College in the database
-Reference Point: Sree Sakthi Engineering College, Coimbatore
-Coordinates: 11.2219, 76.9482
+Initialize hospitals near Saveetha Engineering College in the database
+Reference Point: Saveetha Engineering College, Chennai
+Coordinates: 13.0285647, 80.0142324
 """
 
 from models import db, hospitals
@@ -22,138 +22,137 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     
     return R * c
 
-# Reference point: Sree Sakthi Engineering College, Coimbatore
-REFERENCE_LAT = 11.2219
-REFERENCE_LNG = 76.9482
+# Reference point: Saveetha Engineering College, Chennai
+REFERENCE_LAT = 13.0285647
+REFERENCE_LNG = 80.0142324
 
 # Hospital data
 hospitals_data = [
     {
-        'id': 'ssec_reference',
-        'name': 'Sree Sakthi Engineering College (Reference Point)',
-        'lat': 11.2219,
-        'lng': 76.9482,
+        'id': 'saveetha_reference',
+        'name': 'Saveetha Engineering College (Reference Point)',
+        'lat': 13.0285647,
+        'lng': 80.0142324,
         'rating': 4.8,
         'beds': 0,
         'icu': 0,
         'doctors': 0,
-        'address': 'Sree Sakthi Engineering College, Coimbatore',
-        'phone': '+91-4285-265500',
+        'address': 'Saveetha Engineering College, Thandalam, Chennai',
+        'phone': '+91-44-26801999',
         'specializations': ['Reference Point']
     },
-    # Nearest hospitals to Sree Sakthi Engineering College
     {
-        'id': 'sowmiya_hospital',
-        'name': 'Sowmiya Hospital',
-        'lat': 11.237326,
-        'lng': 76.9334645,
-        'rating': 4.5,
-        'beds': 120,
-        'icu': 15,
-        'doctors': 40,
-        'address': 'Near Sree Sakthi Engineering College, Coimbatore',
-        'phone': '+91-4285-245001',
-        'specializations': ['Emergency Care', '24x7 Service', 'General Medicine', 'Surgery', 'ICU Care']
-    },
-    {
-        'id': 'subbu_hospital',
-        'name': 'Subbu Hospital',
-        'lat': 11.2433146,
-        'lng': 76.9562011,
-        'rating': 4.3,
-        'beds': 80,
-        'icu': 10,
-        'doctors': 30,
-        'address': 'Coimbatore District, Tamil Nadu',
-        'phone': '+91-4285-245002',
-        'specializations': ['Emergency Care', 'General Medicine', 'Pediatrics', 'Women & Children']
-    },
-    {
-        'id': 'savidha_hospitals',
-        'name': 'Savidha Hospitals Private Limited',
-        'lat': 11.2374497,
-        'lng': 76.92818,
-        'rating': 4.4,
-        'beds': 100,
-        'icu': 12,
-        'doctors': 35,
-        'address': 'Coimbatore, Tamil Nadu',
-        'phone': '+91-4285-245003',
-        'specializations': ['Emergency Care', 'Multi-specialty', 'Surgery', 'Orthopedics', '24x7 Service']
-    },
-    {
-        'id': 'gh_hospital',
-        'name': 'GH Hospital',
-        'lat': 11.1696487,
-        'lng': 76.956832,
+        'id': 'saveetha_medical_center',
+        'name': 'Saveetha Medical Center',
+        'lat': 13.0239381,
+        'lng': 80.0055357,
         'rating': 4.6,
         'beds': 200,
         'icu': 25,
-        'doctors': 70,
-        'address': 'Government Hospital Road, Coimbatore District',
-        'phone': '+91-4285-245004',
-        'specializations': ['Emergency Care', '24x7 Service', 'Multi-specialty', 'Critical Care', 'ICU Care', 'Surgery']
+        'doctors': 80,
+        'address': 'Saveetha Nagar, Thandalam, Chennai',
+        'phone': '+91-44-26801000',
+        'specializations': ['Emergency Care', '24x7 Service', 'Multi-specialty', 'Surgery', 'ICU Care']
     },
     {
-        'id': 'sri_raj_hospital',
-        'name': 'Sri Raj Hospital',
-        'lat': 11.1631187,
-        'lng': 76.9197141,
-        'rating': 4.2,
-        'beds': 90,
-        'icu': 10,
-        'doctors': 32,
-        'address': 'Coimbatore District, Tamil Nadu',
-        'phone': '+91-4285-245005',
-        'specializations': ['Emergency Care', '24x7 Emergency', 'Trauma Care', 'General Medicine']
-    },
-    {
-        'id': 'kr_hospital',
-        'name': 'K R Hospital',
-        'lat': 11.1481273,
-        'lng': 76.9336793,
+        'id': 'aachi_hospital',
+        'name': 'Aachi Hospital',
+        'lat': 13.0405157,
+        'lng': 80.0077017,
         'rating': 4.3,
-        'beds': 110,
-        'icu': 14,
-        'doctors': 38,
-        'address': 'Coimbatore District, Tamil Nadu',
-        'phone': '+91-4285-245006',
-        'specializations': ['Emergency Care', 'General Medicine', 'Surgery', 'Pediatrics', 'ICU Care']
+        'beds': 100,
+        'icu': 12,
+        'doctors': 35,
+        'address': 'Poonamallee, Chennai',
+        'phone': '+91-44-26490001',
+        'specializations': ['Emergency Care', 'General Medicine', 'Pediatrics', 'Women & Children']
     },
     {
-        'id': 'sakthi_hospitals',
-        'name': 'Sakthi Hospitals',
-        'lat': 11.2995436,
-        'lng': 76.8685783,
-        'rating': 4.7,
-        'beds': 180,
-        'icu': 22,
-        'doctors': 65,
-        'address': 'Coimbatore, Tamil Nadu',
-        'phone': '+91-4285-245007',
+        'id': 'shifa_medicals',
+        'name': 'Shifa Medicals & SP Clinic Emergency 24hrs & Lab',
+        'lat': 13.0381752,
+        'lng': 80.0286376,
+        'rating': 4.2,
+        'beds': 60,
+        'icu': 8,
+        'doctors': 20,
+        'address': 'Poonamallee, Chennai',
+        'phone': '+91-44-26490002',
+        'specializations': ['Emergency Care', '24x7 Emergency', 'Lab Services', 'General Medicine']
+    },
+    {
+        'id': 'panimalar_medical_college',
+        'name': 'Panimalar Medical College Hospital & Research Institute',
+        'lat': 13.0437301,
+        'lng': 80.0347024,
+        'rating': 4.5,
+        'beds': 300,
+        'icu': 30,
+        'doctors': 100,
+        'address': 'Varadharajapuram, Poonamallee, Chennai',
+        'phone': '+91-44-26490003',
         'specializations': ['Emergency Care', '24x7 Service', 'Multi-specialty', 'Teaching Hospital', 'ICU Care', 'Trauma Center']
     },
     {
-        'id': 'kps_hospitals',
-        'name': 'KPS Hospitals (P) LTD',
-        'lat': 11.2995436,
-        'lng': 76.8685783,
+        'id': 'hopewell_hospital',
+        'name': 'Hopewell Hospital',
+        'lat': 13.0318194,
+        'lng': 79.9874457,
+        'rating': 4.4,
+        'beds': 120,
+        'icu': 15,
+        'doctors': 45,
+        'address': 'Sriperumbudur Road, Chennai',
+        'phone': '+91-44-26490004',
+        'specializations': ['Emergency Care', 'Multi-specialty', 'Surgery', 'Orthopedics', '24x7 Service']
+    },
+    {
+        'id': 'pettai_24hrs_hospital',
+        'name': 'Pettai 24 Hours Hospital',
+        'lat': 13.0437301,
+        'lng': 80.0347024,
+        'rating': 4.1,
+        'beds': 80,
+        'icu': 10,
+        'doctors': 25,
+        'address': 'Pettai, Poonamallee, Chennai',
+        'phone': '+91-44-26490005',
+        'specializations': ['Emergency Care', '24x7 Emergency', 'Trauma Care', 'General Medicine']
+    },
+    {
+        'id': 'gandhi_hospital',
+        'name': 'Gandhi Hospital',
+        'lat': 13.0033869,
+        'lng': 79.961439,
+        'rating': 4.5,
+        'beds': 250,
+        'icu': 30,
+        'doctors': 90,
+        'address': 'Sriperumbudur, Chennai',
+        'phone': '+91-44-26490006',
+        'specializations': ['Emergency Care', '24x7 Service', 'Multi-specialty', 'Critical Care', 'ICU Care', 'Surgery']
+    },
+    {
+        'id': 'be_well_hospitals',
+        'name': 'Be Well Hospitals Poonamallee',
+        'lat': 13.0288357,
+        'lng': 80.1137108,
         'rating': 4.7,
         'beds': 180,
         'icu': 22,
         'doctors': 65,
-        'address': 'Coimbatore, Tamil Nadu',
-        'phone': '+91-4285-245008',
+        'address': 'Poonamallee, Chennai',
+        'phone': '+91-44-26490007',
         'specializations': ['Emergency Care', 'General Medicine', 'Surgery', 'Maternity', 'Pediatrics']
     },
 ]
 
 def init_kongu_hospitals():
-    """Initialize hospitals near Sree Sakthi Engineering College"""
+    """Initialize hospitals near Saveetha Engineering College, Chennai"""
     print("\n" + "="*70)
-    print("🏥 INITIALIZING HOSPITALS NEAR SREE SAKTHI ENGINEERING COLLEGE")
+    print("🏥 INITIALIZING HOSPITALS NEAR SAVEETHA ENGINEERING COLLEGE, CHENNAI")
     print("="*70)
-    print(f"\n📍 Reference Point: Sree Sakthi Engineering College, Coimbatore")
+    print(f"\n📍 Reference Point: Saveetha Engineering College, Chennai")
     print(f"   Coordinates: {REFERENCE_LAT}, {REFERENCE_LNG}")
     print("\n")
     
@@ -222,7 +221,7 @@ def init_kongu_hospitals():
             print(f"🔄 Updated: {hosp_data['name']}")
         
         print(f"   📍 Location: {hosp_data['lat']}, {hosp_data['lng']}")
-        print(f"   📏 Distance: {distance:.2f} km from Sree Sakthi Engineering College")
+        print(f"   📏 Distance: {distance:.2f} km from Saveetha Engineering College")
         print(f"   🎨 Color Tag: {color_tag}")
         print(f"   ⭐ Rating: {hosp_data['rating']}")
         print(f"   🛏️  Beds: {hosp_data['beds']} | ICU: {hosp_data['icu']} | Doctors: {hosp_data['doctors']}")
@@ -237,7 +236,7 @@ def init_kongu_hospitals():
     print("="*70)
     
     # Print sorted by distance
-    print("\n📊 HOSPITALS SORTED BY DISTANCE FROM SREE SAKTHI ENGINEERING COLLEGE:")
+    print("\n📊 HOSPITALS SORTED BY DISTANCE FROM SAVEETHA ENGINEERING COLLEGE:")
     print("="*70)
     
     sorted_hospitals = sorted(hospitals_data, key=lambda x: calculate_distance(
