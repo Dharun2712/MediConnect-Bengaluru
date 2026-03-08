@@ -22,7 +22,7 @@ import logging
 
 # AWS DynamoDB + SNS integration
 try:
-    from aws_services import store_accident, publish_alert, get_accident as dynamo_get_accident, update_accident_status
+    from aws_services import store_accident, publish_alert, get_accident as dynamo_get_accident, update_accident_status, upload_accident_image, list_accident_images
     AWS_ENABLED = True
 except Exception as _aws_err:
     AWS_ENABLED = False
@@ -35,6 +35,21 @@ logging.basicConfig(
     datefmt='%H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+# CloudWatch Logs integration
+try:
+    import watchtower
+    import boto3
+    cw_handler = watchtower.CloudWatchLogHandler(
+        log_group_name="/lifelink/backend",
+        log_stream_name="ec2-fastapi",
+        boto3_client=boto3.client("logs", region_name=os.environ.get("AWS_REGION", "us-east-1")),
+    )
+    cw_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logging.getLogger().addHandler(cw_handler)
+    logger.info("☁️ CloudWatch Logs connected: /lifelink/backend")
+except Exception as _cw_err:
+    logger.warning(f"CloudWatch Logs not available: {_cw_err}")
 
 # ---------- Configuration ----------
 MONGODB_URI = "mongodb+srv://Dharun:Dharun2712@cluster0.yr5quzl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
@@ -536,7 +551,7 @@ async def accident_webhook(
                 logger.info(f"✅ Accident stored in DynamoDB: {dynamo_record['accident_id']}")
                 
                 if data.latitude and data.longitude:
-                    sns_msg_id = publish_alert(data.latitude, data.longitude, accident_id)
+                    sns_msg_id = publish_alert(data.latitude, data.longitude, accident_id, impact_force=data.impact_force or 0, device_id=data.device_id or '')
                     logger.info(f"✅ SNS alert sent: {sns_msg_id}")
             except Exception as aws_err:
                 logger.warning(f"AWS integration error (non-fatal): {aws_err}")
@@ -978,8 +993,18 @@ async def trigger_sos(payload: SOSRequest, current_user: Dict = Depends(get_curr
                 impact_force=0,
                 status="sos_triggered",
             )
-            sns_msg_id = publish_alert(location["lat"], location["lng"], request_id)
+            sns_msg_id = publish_alert(location["lat"], location["lng"], request_id, impact_force=0, device_id=f"SOS-{current_user['_id']}")
             logger.info(f"AWS: DynamoDB={dynamo_record['accident_id']}, SNS={sns_msg_id}")
+
+            # Upload accident image to S3 if provided
+            if payload.image_base64:
+                try:
+                    import base64
+                    image_bytes = base64.b64decode(payload.image_base64)
+                    s3_result = upload_accident_image(request_id, image_bytes, "image/jpeg")
+                    logger.info(f"☁️  Accident image uploaded to S3: {s3_result['s3_key']}")
+                except Exception as s3_err:
+                    logger.warning(f"S3 image upload failed (non-fatal): {s3_err}")
         except Exception as aws_err:
             logger.warning(f"AWS integration error (non-fatal): {aws_err}")
     
