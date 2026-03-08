@@ -580,6 +580,7 @@ async def accident_webhook(
                     "battery_level": data.battery_level
                 },
                 "status": "pending",
+                "timestamp": datetime.datetime.utcnow(),
                 "created_at": datetime.datetime.utcnow(),
                 "accident_id": accident_id
             }
@@ -1090,21 +1091,26 @@ async def get_nearby_patients(current_user: Dict = Depends(get_current_user)):
     if not driver or not driver.get("location"):
         return {"success": True, "requests": []}
     
-    # Find nearby pending requests, sorted by newest first
-    # Use $geoWithin + $centerSphere so MongoDB allows custom sort by timestamp
-    driver_coords = driver["location"]["coordinates"]  # [lng, lat]
-    radius_in_radians = 20000 / 6378100  # 20km / Earth radius in meters
+    # Find nearby pending requests using $near (within 20km), then sort newest first
     nearby_requests = list(patient_requests.find(
         {
             "status": "pending",
             "location": {
-                "$geoWithin": {
-                    "$centerSphere": [driver_coords, radius_in_radians]
+                "$near": {
+                    "$geometry": driver["location"],
+                    "$maxDistance": 20000  # 20km
                 }
             }
         },
         {"image_base64": 0}  # Exclude image from list for performance
-    ).sort("timestamp", -1).limit(10))
+    ).limit(20))  # Fetch more, then sort and trim
+
+    # Sort newest first by timestamp (fallback to created_at for ESP32 requests)
+    nearby_requests.sort(
+        key=lambda x: x.get("timestamp") or x.get("created_at") or datetime.datetime.min,
+        reverse=True
+    )
+    nearby_requests = nearby_requests[:10]
     
     results = []
     for r in nearby_requests:
