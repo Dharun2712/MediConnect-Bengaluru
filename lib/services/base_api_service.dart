@@ -39,7 +39,11 @@ class BaseApiService {
 
   /// Initialize the service - call this before using any methods
   Future<void> init() async {
-    await dotenv.load(fileName: '.env');
+    try {
+      await dotenv.load(fileName: '.env');
+    } catch (_) {
+      // .env may not exist or already loaded — safe to ignore
+    }
     _prefs ??= await SharedPreferences.getInstance();
     _cachedUrl = _prefs!.getString(_prefsKey);
   }

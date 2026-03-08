@@ -278,6 +278,12 @@ class _DriverDashboardEnhancedState extends State<DriverDashboardEnhanced> {
   Future<void> _loadIncomingRequests() async {
     try {
       final requests = await _sosService.getNearbyPatients();
+      // Sort by timestamp descending (newest first)
+      requests.sort((a, b) {
+        final tA = a['timestamp'] ?? '';
+        final tB = b['timestamp'] ?? '';
+        return tB.toString().compareTo(tA.toString());
+      });
       if (mounted) {
         setState(() {
           _incomingRequests = requests;

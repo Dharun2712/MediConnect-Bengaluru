@@ -99,12 +99,14 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
           }
         });
 
-        // Listen for driver acceptance
+        // Listen for driver acceptance — show modal + refresh
         _socketService.socket?.on('driver_accepted', (data) {
           print('[Admin] ✅ Driver accepted request: $data');
           if (mounted) {
             _handleDriverAcceptedRequest(data);
             _loadPatientRequests(); // Refresh immediately
+            _emergencyAlert.playEmergencyAlert();
+            _showDriverAcceptedModal(data is Map<String, dynamic> ? data : {});
           }
         });
 
@@ -410,6 +412,122 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
     );
   }
 
+  /// Modal shown when a driver accepts a request — hospital needs to prepare
+  void _showDriverAcceptedModal(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final patientName = data['patient_name'] ?? data['user_name'] ?? 'Unknown';
+    final driverName = data['driver_name'] ?? 'Unknown Driver';
+    final condition = data['condition'] ?? '';
+    final severity = (data['preliminary_severity'] ?? '').toString().toUpperCase();
+    final eta = data['eta_minutes'] ?? data['eta'];
+    final vehicle = data['vehicle'] ?? 'Ambulance';
+    final driverContact = data['driver_contact'] ?? '';
+    final patientContact = data['patient_contact'] ?? '';
+    final bloodGroup = data['blood_group'] ?? '';
+
+    final isAccident = condition == 'accident_detected' || condition.toString().toLowerCase().contains('accident');
+    final headerColor = isAccident ? Colors.red : Colors.green;
+    final headerText = isAccident ? '🚨 ACCIDENT — DRIVER RESPONDING' : '✅ DRIVER ACCEPTED REQUEST';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: headerColor.withOpacity(0.05),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: headerColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(isAccident ? Icons.car_crash : Icons.check_circle, color: headerColor, size: 28),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                headerText,
+                style: TextStyle(
+                  color: headerColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'A driver has accepted the emergency request. Prepare for patient arrival.',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: headerColor.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _modalRow(Icons.person, 'Patient', patientName),
+                  if (patientContact.isNotEmpty) _modalRow(Icons.phone, 'Patient Contact', patientContact),
+                  if (bloodGroup.isNotEmpty) _modalRow(Icons.bloodtype, 'Blood Group', bloodGroup),
+                  if (condition.isNotEmpty) _modalRow(Icons.medical_information, 'Condition', condition),
+                  if (severity.isNotEmpty) _modalRow(Icons.warning_amber, 'Severity', severity),
+                  const Divider(height: 16),
+                  _modalRow(Icons.person_pin, 'Driver', driverName),
+                  if (driverContact.isNotEmpty) _modalRow(Icons.phone_android, 'Driver Contact', driverContact),
+                  _modalRow(Icons.airport_shuttle, 'Vehicle', vehicle),
+                  if (eta != null) _modalRow(Icons.timer, 'ETA', '$eta min'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.volume_up, color: headerColor, size: 18),
+                const SizedBox(width: 6),
+                Text('Alert is playing...', style: TextStyle(color: headerColor, fontStyle: FontStyle.italic, fontSize: 13)),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _emergencyAlert.stopAlert();
+              Navigator.pop(ctx);
+            },
+            child: Text('Dismiss', style: TextStyle(color: Colors.grey[700])),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.local_hospital, size: 18),
+            label: const Text('Prepare Admission'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: headerColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              _emergencyAlert.stopAlert();
+              Navigator.pop(ctx);
+              _loadPatientRequests();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   void _handleNewAssessment(dynamic data) {
     setState(() {
       // Update the patient in the list with the assessment
@@ -460,7 +578,18 @@ class _AdminDashboardEnhancedState extends State<AdminDashboardEnhanced> {
             r['status'] == 'assessed' ||
             r['status'] == 'in_transit'
           ).toList();
+          // Sort newest first by timestamp
+          _incomingPatients.sort((a, b) {
+            final tA = a['timestamp'] ?? '';
+            final tB = b['timestamp'] ?? '';
+            return tB.toString().compareTo(tA.toString());
+          });
           _admissionHistory = requests.where((r) => r['status'] == 'admitted' || r['status'] == 'rejected').toList();
+          _admissionHistory.sort((a, b) {
+            final tA = a['timestamp'] ?? '';
+            final tB = b['timestamp'] ?? '';
+            return tB.toString().compareTo(tA.toString());
+          });
           _updateMapMarkers();
         });
       }

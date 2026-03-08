@@ -1090,19 +1090,21 @@ async def get_nearby_patients(current_user: Dict = Depends(get_current_user)):
     if not driver or not driver.get("location"):
         return {"success": True, "requests": []}
     
-    # Find nearby requests (exclude large image_base64 field from list query, keep accident_analysis)
+    # Find nearby pending requests, sorted by newest first
+    # Use $geoWithin + $centerSphere so MongoDB allows custom sort by timestamp
+    driver_coords = driver["location"]["coordinates"]  # [lng, lat]
+    radius_in_radians = 20000 / 6378100  # 20km / Earth radius in meters
     nearby_requests = list(patient_requests.find(
         {
             "status": "pending",
             "location": {
-                "$near": {
-                    "$geometry": driver["location"],
-                    "$maxDistance": 20000  # 20km
+                "$geoWithin": {
+                    "$centerSphere": [driver_coords, radius_in_radians]
                 }
             }
         },
         {"image_base64": 0}  # Exclude image from list for performance
-    ).limit(10))
+    ).sort("timestamp", -1).limit(10))
     
     results = []
     for r in nearby_requests:
