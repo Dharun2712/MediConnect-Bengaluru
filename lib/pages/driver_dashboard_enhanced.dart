@@ -562,6 +562,21 @@ class _DriverDashboardEnhancedState extends State<DriverDashboardEnhanced> {
               ),
             ),
             SizedBox(height: 16),
+            if (data['has_image'] == true || data['accident_analysis'] != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: _RequestImagePreview(
+                    requestId: data['request_id']?.toString() ?? data['_id']?.toString(),
+                    hasImage: true,
+                  ),
+                ),
+              ),
             Row(
               children: [
                 Icon(Icons.volume_up, color: Colors.red, size: 20),
@@ -1695,7 +1710,7 @@ class _DriverDashboardEnhancedState extends State<DriverDashboardEnhanced> {
                         // Accident Image Preview
                         if (request['has_image'] == true || request['accident_analysis'] != null)
                           _RequestImagePreview(
-                            requestId: request['_id']?.toString(),
+                            requestId: request['_id']?.toString() ?? request['request_id']?.toString(),
                             hasImage: request['has_image'] == true,
                           ),
                         // Ambulance Dispatch Recommendation

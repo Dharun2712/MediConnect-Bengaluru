@@ -38,7 +38,7 @@ class _PatientProfileDialogState extends State<PatientProfileDialog> {
       _imageBytes != null;
 
   Future<void> _loadImage() async {
-    final requestId = patient['_id']?.toString();
+    final requestId = patient['_id']?.toString() ?? patient['request_id']?.toString();
     // Try loading if has_image flag is set, or if accident_analysis exists
     // (since analysis implies an image was uploaded)
     if (requestId == null) return;
