@@ -20,6 +20,13 @@ import socketio
 from contextlib import asynccontextmanager
 import logging
 
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except Exception as _gemini_err:
+    GEMINI_AVAILABLE = False
+    logging.getLogger(__name__).warning(f"Gemini SDK not available: {_gemini_err}")
+
 # AWS DynamoDB + SNS integration
 try:
     from aws_services import store_accident, publish_alert, get_accident as dynamo_get_accident, update_accident_status, upload_accident_image, list_accident_images
@@ -62,6 +69,8 @@ MONGODB_URI = (
 DB_NAME = os.environ.get("DB_NAME", "smart_ambulance")
 JWT_SECRET = os.environ.get("JWT_SECRET", "your_secret_key_here_change_in_production")
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
 MONGO_TLS_ALLOW_INVALID_CERTIFICATES = (
     os.environ.get("MONGO_TLS_ALLOW_INVALID_CERTIFICATES", "true").lower()
     in ("1", "true", "yes")
@@ -154,6 +163,58 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class FirstAidChatRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=800)
+
+
+class FirstAidChatResponse(BaseModel):
+    response: str
+
+
+def _build_first_aid_prompt(user_input: str) -> str:
+    return (
+        "You are SmartAid, an emergency first-aid assistant.\n"
+        "Rules:\n"
+        "- Give short, clear answers in numbered steps.\n"
+        "- Focus only on immediate first-aid actions.\n"
+        "- Include a severity level: low, medium, or high.\n"
+        "- If life-threatening, say to call emergency services immediately.\n"
+        "- Respond in the same language as the user.\n"
+        "- Avoid long explanations.\n\n"
+        "Return format:\n"
+        "Severity: <low|medium|high>\n"
+        "Steps:\n"
+        "1) ...\n"
+        "2) ...\n"
+        "Warnings: ...\n\n"
+        f"User: {user_input}\n"
+    )
+
+
+@app.post("/api/first-aid/chat", response_model=FirstAidChatResponse)
+async def first_aid_chat(payload: FirstAidChatRequest):
+    if not GEMINI_AVAILABLE:
+        raise HTTPException(status_code=500, detail="Gemini SDK not available")
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set")
+
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel(GEMINI_MODEL)
+    prompt = _build_first_aid_prompt(payload.query)
+
+    try:
+        result = model.generate_content(prompt)
+        text = (result.text or "").strip()
+    except Exception as exc:
+        logger.exception("First-aid chat failed")
+        raise HTTPException(status_code=500, detail="Chatbot error") from exc
+
+    if not text:
+        raise HTTPException(status_code=500, detail="Empty response from model")
+
+    return FirstAidChatResponse(response=text)
 
 # Import and include Risk Prediction API Router
 try:

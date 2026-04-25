@@ -36,6 +36,32 @@ if defined GROQ_API_KEY (
     echo [INFO] GROQ_API_KEY detected. Groq image analysis is enabled.
 )
 
+REM Gemini API key for First-Aid Chatbot
+REM Load GEMINI_API_KEY and GEMINI_MODEL from backend\.env first, then ..\.env as fallback.
+if not defined GEMINI_API_KEY (
+    if exist "%CD%\.env" (
+        for /f "usebackq tokens=1,* delims==" %%A in ("%CD%\.env") do (
+            if /I "%%A"=="GEMINI_API_KEY" set "GEMINI_API_KEY=%%B"
+            if /I "%%A"=="GEMINI_MODEL" set "GEMINI_MODEL=%%B"
+        )
+    )
+)
+if not defined GEMINI_API_KEY (
+    if exist "%CD%\..\.env" (
+        for /f "usebackq tokens=1,* delims==" %%A in ("%CD%\..\.env") do (
+            if /I "%%A"=="GEMINI_API_KEY" set "GEMINI_API_KEY=%%B"
+            if /I "%%A"=="GEMINI_MODEL" set "GEMINI_MODEL=%%B"
+        )
+    )
+)
+if not defined GEMINI_API_KEY (
+    echo [WARNING] GEMINI_API_KEY not set. First-aid chatbot will not work.
+    echo [HINT] Add GEMINI_API_KEY to backend\.env or project-root .env.
+)
+if defined GEMINI_API_KEY (
+    echo [INFO] GEMINI_API_KEY detected. First-aid chatbot is enabled.
+)
+
 REM Ensure PYTHONPATH includes current dir so imports work when invoked from elsewhere
 set "PYTHONPATH=%CD%"
 

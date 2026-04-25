@@ -35,6 +35,9 @@ class ApiConfig {
   
   // AI Image Analysis Endpoint
   static String get accidentImageAnalyze => "$baseUrl/api/accident-image/analyze";
+
+  // First-aid chatbot
+  static String get firstAidChat => "$baseUrl/api/first-aid/chat";
   
   // Timeout configuration
   static const Duration requestTimeout = Duration(seconds: 15);
