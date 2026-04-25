@@ -32,7 +32,7 @@ async def analyze_accident(
     lng: Optional[float] = Form(None, description="Longitude of accident location"),
 ):
     """
-    🚑 Analyze an accident scene image using AI Vision Model (Groq + LLaVA)
+    🚑 Analyze an accident scene image using AI Vision Model (Gemini Vision)
 
     Upload an image of an accident scene and receive:
     - Number of people detected
@@ -142,14 +142,14 @@ async def get_accident_images(accident_id: str):
 async def image_analysis_health():
     """Health check for the image analysis service"""
     try:
-        from accident_image_analyzer import GROQ_API_KEY, VISION_MODEL
+        from accident_image_analyzer import GEMINI_API_KEY, GEMINI_VISION_MODEL
 
-        has_key = bool(GROQ_API_KEY and len(GROQ_API_KEY) > 10)
+        has_key = bool(GEMINI_API_KEY and len(GEMINI_API_KEY) > 10)
         return {
             "success": True,
             "service": "accident-image-analysis",
             "status": "ready" if has_key else "no_api_key",
-            "model": VISION_MODEL,
+            "model": GEMINI_VISION_MODEL,
             "max_file_size_mb": MAX_FILE_SIZE // (1024 * 1024),
             "supported_formats": list(ALLOWED_MIME_TYPES),
         }

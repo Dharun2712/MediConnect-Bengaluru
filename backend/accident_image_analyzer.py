@@ -1,17 +1,16 @@
 """
 SmartAid Accident Image Analysis Module
-Uses Groq Vision API (LLaVA v1.5) to analyze accident scene images.
+Uses Gemini Vision (gemini-1.5-flash) to analyze accident scene images.
 
 Workflow:
-  1. User uploads accident image
-  2. Image is base64-encoded and sent to Groq Vision Model
-  3. AI extracts accident features (people, vehicles, injuries, fire, damage)
-  4. Severity level predicted
-  5. Ambulance alert priority returned
+    1. User uploads accident image
+    2. Image bytes are sent to Gemini Vision Model
+    3. AI extracts accident features (people, vehicles, injuries, fire, damage)
+    4. Severity level predicted
+    5. Ambulance alert priority returned
 """
 
 import os
-import base64
 import json
 import re
 import logging
@@ -19,17 +18,17 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Groq API key
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+# Gemini API key
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-if not GROQ_API_KEY:
+if not GEMINI_API_KEY:
     logger.warning(
-        "⚠️  GROQ_API_KEY not set. Image analysis will fail. "
-        "Set the GROQ_API_KEY environment variable."
+        "⚠️  GEMINI_API_KEY not set. Image analysis will fail. "
+        "Set the GEMINI_API_KEY environment variable."
     )
 
-# Vision model available on Groq
-VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+# Vision model available on Gemini
+GEMINI_VISION_MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-1.5-flash")
 
 # System prompt sent to the vision model
 ANALYSIS_PROMPT = """You are an AI emergency accident analysis system used in a SmartAid platform.
@@ -74,16 +73,21 @@ Return ONLY a valid JSON response with this structure:
 Do not include explanations. Only return JSON."""
 
 
-def _get_groq_client():
-    """Lazily import and build the Groq client."""
+def _get_gemini_model():
+    """Lazily import and build the Gemini model client."""
     try:
-        from groq import Groq
-        return Groq(api_key=GROQ_API_KEY)
+        import google.generativeai as genai
     except ImportError:
         raise RuntimeError(
-            "The 'groq' package is not installed. "
-            "Install it with: pip install groq"
+            "The 'google-generativeai' package is not installed. "
+            "Install it with: pip install google-generativeai"
         )
+
+    if not GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY is not set")
+
+    genai.configure(api_key=GEMINI_API_KEY)
+    return genai.GenerativeModel(GEMINI_VISION_MODEL)
 
 
 def _extract_json(text: str) -> dict:
@@ -133,7 +137,7 @@ def _validate_result(data: dict) -> dict:
 
 def analyze_accident_image(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
     """
-    Analyze an accident scene image using the Groq Vision API.
+    Analyze an accident scene image using the Gemini Vision API.
 
     Parameters
     ----------
@@ -149,34 +153,26 @@ def analyze_accident_image(image_bytes: bytes, mime_type: str = "image/jpeg") ->
         possible_injured, fire_detected, damage_level,
         severity_level, ambulance_priority.
     """
-    logger.info("🔍 Starting accident image analysis via Groq Vision API ...")
+    logger.info("🔍 Starting accident image analysis via Gemini Vision API ...")
 
-    client = _get_groq_client()
+    model = _get_gemini_model()
 
-    # Base64 encode the image
-    b64_data = base64.b64encode(image_bytes).decode("utf-8")
-    data_uri = f"data:{mime_type};base64,{b64_data}"
-
-    # Call Groq Vision API
-    response = client.chat.completions.create(
-        model=VISION_MODEL,
-        messages=[
+    # Call Gemini Vision API
+    response = model.generate_content(
+        [
+            ANALYSIS_PROMPT,
             {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": ANALYSIS_PROMPT},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": data_uri},
-                    },
-                ],
-            }
+                "mime_type": mime_type,
+                "data": image_bytes,
+            },
         ],
-        temperature=0.1,   # Low temperature for consistent structured output
-        max_tokens=512,
+        generation_config={
+            "temperature": 0.1,
+            "max_output_tokens": 512,
+        },
     )
 
-    raw_text = response.choices[0].message.content
+    raw_text = (response.text or "").strip()
     logger.info(f"📝 Raw model response: {raw_text[:300]}")
 
     parsed = _extract_json(raw_text)

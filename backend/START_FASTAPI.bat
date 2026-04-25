@@ -43,6 +43,7 @@ if not defined GEMINI_API_KEY (
         for /f "usebackq tokens=1,* delims==" %%A in ("%CD%\.env") do (
             if /I "%%A"=="GEMINI_API_KEY" set "GEMINI_API_KEY=%%B"
             if /I "%%A"=="GEMINI_MODEL" set "GEMINI_MODEL=%%B"
+            if /I "%%A"=="GEMINI_VISION_MODEL" set "GEMINI_VISION_MODEL=%%B"
         )
     )
 )
@@ -51,6 +52,7 @@ if not defined GEMINI_API_KEY (
         for /f "usebackq tokens=1,* delims==" %%A in ("%CD%\..\.env") do (
             if /I "%%A"=="GEMINI_API_KEY" set "GEMINI_API_KEY=%%B"
             if /I "%%A"=="GEMINI_MODEL" set "GEMINI_MODEL=%%B"
+            if /I "%%A"=="GEMINI_VISION_MODEL" set "GEMINI_VISION_MODEL=%%B"
         )
     )
 )
