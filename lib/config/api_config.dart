@@ -3,14 +3,15 @@
 
 /// API Configuration for Smart Ambulance App
 /// 
-/// Update the [baseUrl] to your deployed Flask backend URL in production.
+/// Update the [baseUrl] to your deployed backend URL in production.
 /// For local development with ngrok: https://your-ngrok-subdomain.ngrok.io
 /// For production: https://api.yourdomain.com
 class ApiConfig {
   // Set API_BASE_URL using --dart-define for Cloud Run or other deployments.
   // Example:
   // flutter run --dart-define=API_BASE_URL=https://your-service-url.a.run.app
-  static const String _defaultBaseUrl = "http://10.31.181.206:8000";
+  static const String _defaultBaseUrl =
+      "https://mediconnect-api-28743180501.asia-south1.run.app";
   static const String _apiBaseUrl = String.fromEnvironment(
     "API_BASE_URL",
     defaultValue: _defaultBaseUrl,
@@ -26,7 +27,7 @@ class ApiConfig {
   static String get loginDriver => "$baseUrl/api/login/driver";
   static String get loginAdmin => "$baseUrl/api/login/admin";
   static String get registerClient => "$baseUrl/api/register/client";
-  static String get health => "$baseUrl/api/health";
+  static String get health => "$baseUrl/health";
   
   // ESP32 Accident Detection Endpoints
   static String get accident => "$baseUrl/api/accident";
