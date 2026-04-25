@@ -23,7 +23,7 @@ import java.net.URL
 object EmergencyAlertManager {
 
     private const val TAG = "EmergencyAlertManager"
-    private const val BACKEND_URL = "http://34.226.191.14:8000"
+    private const val BACKEND_URL = "http://20.47.72.43:8000"
 
     // Emergency keywords - multilingual (English, Tamil, Hindi, Kannada, Malayalam, Telugu)
     private val emergencyKeywords = listOf(
