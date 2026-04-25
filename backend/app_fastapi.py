@@ -52,12 +52,20 @@ except Exception as _cw_err:
     logger.warning(f"CloudWatch Logs not available: {_cw_err}")
 
 # ---------- Configuration ----------
-MONGODB_URI = "mongodb+srv://Dharun:Dharun2712@cluster0.yr5quzl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+MONGODB_URI = (
+    os.environ.get("MONGODB_URI")
+    or os.environ.get("MONGO_URI")
+    or "mongodb+srv://Dharun:Dharun2712@cluster0.yr5quzl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+)
 # The production/testing DB in your cluster is named "smart_ambulance".
 # Use that DB so existing driver and user documents are found.
-DB_NAME = "smart_ambulance"
-JWT_SECRET = "your_secret_key_here_change_in_production"
-JWT_ALGORITHM = "HS256"
+DB_NAME = os.environ.get("DB_NAME", "smart_ambulance")
+JWT_SECRET = os.environ.get("JWT_SECRET", "your_secret_key_here_change_in_production")
+JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
+MONGO_TLS_ALLOW_INVALID_CERTIFICATES = (
+    os.environ.get("MONGO_TLS_ALLOW_INVALID_CERTIFICATES", "true").lower()
+    in ("1", "true", "yes")
+)
 
 # ---------- MongoDB Setup ----------
 mongo_client = MongoClient(
@@ -70,7 +78,7 @@ mongo_client = MongoClient(
     maxPoolSize=50,  # Increased connection pool for better performance
     minPoolSize=10,
     maxIdleTimeMS=45000,
-    tlsAllowInvalidCertificates=True  # For development only - disable SSL verification
+    tlsAllowInvalidCertificates=MONGO_TLS_ALLOW_INVALID_CERTIFICATES
 )
 db = mongo_client[DB_NAME]
 
