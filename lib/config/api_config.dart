@@ -32,7 +32,7 @@ class ApiConfig {
     // For Android emulator: use 10.0.2.2 (special IP that maps to host's localhost)
     // For physical devices: use host machine's LAN IP
     // For production release: use deployed server IP
-    final String url = "http://20.47.72.43:8000"; // <-- Backend server IP (Azure)
+    final String url = "http://10.31.181.206:8000"; // <-- Backend server IP (current local network)
     return url;
   }
 

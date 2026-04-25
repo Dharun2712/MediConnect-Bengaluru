@@ -13,10 +13,27 @@ REM Force Python produce UTF-8 output on Windows consoles
 set "PYTHONUTF8=1"
 
 REM Groq API key for AI Accident Image Analysis
-REM Set your GROQ_API_KEY environment variable before running, or uncomment and fill in below:
-REM set "GROQ_API_KEY=your_groq_api_key_here"
+REM Load GROQ_API_KEY from backend\.env first, then ..\.env as fallback.
+if not defined GROQ_API_KEY (
+    if exist "%CD%\.env" (
+        for /f "usebackq tokens=1,* delims==" %%A in ("%CD%\.env") do (
+            if /I "%%A"=="GROQ_API_KEY" set "GROQ_API_KEY=%%B"
+        )
+    )
+)
+if not defined GROQ_API_KEY (
+    if exist "%CD%\..\.env" (
+        for /f "usebackq tokens=1,* delims==" %%A in ("%CD%\..\.env") do (
+            if /I "%%A"=="GROQ_API_KEY" set "GROQ_API_KEY=%%B"
+        )
+    )
+)
 if not defined GROQ_API_KEY (
     echo [WARNING] GROQ_API_KEY not set. Image analysis will not work.
+    echo [HINT] Add GROQ_API_KEY to backend\.env or project-root .env.
+)
+if defined GROQ_API_KEY (
+    echo [INFO] GROQ_API_KEY detected. Groq image analysis is enabled.
 )
 
 REM Ensure PYTHONPATH includes current dir so imports work when invoked from elsewhere
