@@ -1,4 +1,4 @@
-# 🚑 Smart-Aid: AI-Powered Emergency Ambulance Response System
+# 🚑 Smart-Aid: Google-Powered Emergency Ambulance Response System
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-**Revolutionizing Emergency Medical Services with AI-Powered Dispatch, Real-Time Tracking, and Intelligent Resource Management**
+**Revolutionizing Emergency Medical Services with Flutter, Google Maps, GPS tracking, and AI-assisted dispatch**
 
 [Features](#-key-features) • [Architecture](#-system-architecture) • [Installation](#-installation) • [Demo](#-demo) • [Documentation](#-documentation)
 
@@ -50,8 +50,8 @@
 Smart-Aid provides:
 - **Instant SOS Triggering** with one-tap emergency activation
 - **AI-Powered Accident Detection** using accelerometer and gyroscope sensors
-- **Geospatial Intelligent Dispatch** finding the nearest available ambulance within seconds
-- **Real-Time Tracking** with live location updates for patients and drivers
+- **Google Maps-Based Dispatch** finding the nearest available ambulance within seconds
+- **Real-Time Tracking** with live GPS updates for patients and drivers
 - **Hospital Integration** showing real-time bed availability and capacity
 - **Multi-Role Dashboard** for citizens, drivers, and hospital administrators
 
@@ -351,6 +351,16 @@ Hospital Admin Dashboard
 
 ## 💻 Technology Stack
 
+### Google Technologies Used
+
+- **Google Vision AI** is the primary AI service in SmartAid for intelligent emergency detection. When an image is captured or uploaded during an incident, Vision AI processes it using object detection and image labeling to identify critical elements such as fire, smoke, injuries, or unsafe conditions.
+- **Google Gemini API** supports AI-assisted emergency guidance and follow-up decision support. It helps provide fast, context-aware responses for incident handling and first-aid assistance.
+- **Google Cloud** provides the cloud foundation for scalable AI workflows, backend automation, and service coordination across the platform.
+- **Firebase** is used for authentication and real-time event delivery, helping synchronize alerts and updates between users, ambulance drivers, and hospital staff.
+- **Google Maps Platform** powers real-time geospatial intelligence, including live location tracking, route optimization, nearest ambulance detection, and ETA calculation.
+
+These Google services work together to classify emergency type and severity, trigger alerts automatically, initiate response workflows, and improve coordination for faster, more accurate emergency handling.
+
 ### Backend
 
 | Technology | Purpose | Version |
@@ -363,6 +373,7 @@ Hospital Admin Dashboard
 | **PyJWT** | JSON Web Token authentication | 3.3.0 |
 | **Bcrypt** | Password hashing | 4.1.1 |
 | **Pydantic** | Data validation and settings management | 2.5.0 |
+| **google-generativeai** | Gemini API for AI predictions & chatbot | Latest |
 
 ### Frontend
 
@@ -374,6 +385,7 @@ Hospital Admin Dashboard
 | **socket_io_client** | WebSocket client | 2.0.3 |
 | **geolocator** | GPS location tracking | 10.1.0 |
 | **google_maps_flutter** | Interactive maps | 2.5.0 |
+| **google_fonts** | Google font styling | 6.2.1 |
 | **sensors_plus** | Accelerometer/Gyroscope access | 4.0.0 |
 | **flutter_secure_storage** | Secure credential storage | 9.0.0 |
 | **fl_chart** | Analytics charts | 0.66.0 |
