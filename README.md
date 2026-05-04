@@ -361,6 +361,13 @@ Hospital Admin Dashboard
 
 These Google services work together to classify emergency type and severity, trigger alerts automatically, initiate response workflows, and improve coordination for faster, more accurate emergency handling.
 
+| Service | Purpose | Use Case |
+|---------|---------|----------|
+| **Google Maps Platform** | Real-time location, maps, and routing | Ambulance tracking, ETA calculation, route optimization |
+| **Geolocator** | GPS location capture on device | Live position tracking and SOS location sharing |
+| **Google Fonts** | Consistent typography and UI styling | Clean, readable mobile and web screens |
+| **Gemini API** | AI assistance and emergency guidance | First-aid chatbot and smart recommendations |
+
 ### Backend
 
 | Technology | Purpose | Version |
